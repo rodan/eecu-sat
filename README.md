@@ -1,5 +1,5 @@
 
-## esat (Engine ECU signal acquisition tool)
+## eecu-sat (Engine ECU signal acquisition tool)
 
 set of multiple modules that allow all analog signals generated and received by a vehicle's Engine Electronic Control Unit to be captured and analyzed. it can either be used as a testing jig for EECUs or as a low level diagnostic tool in which a known good set of signals can be used as reference.
 
@@ -30,7 +30,7 @@ project directory structure
 notable dependencies would be a Linux based OS, gcc, make and libzip. compilation is as simple as
 
 ```
-cd ./software/esat
+cd ./software/eecu-sat
 make
 ```
 
