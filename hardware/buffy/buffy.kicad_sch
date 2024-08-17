@@ -1,0 +1,167 @@
+(kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid cb6fa2fd-ff54-47cd-ae06-14635e1ef834)
+
+  (paper "A4")
+
+  (lib_symbols
+  )
+
+
+  (sheet (at 87.63 113.03) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 18c9e9d7-750c-4e81-86cb-d778c05025bb)
+    (property "Sheetname" "ch4" (at 87.63 112.3184 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch4.kicad_sch" (at 87.63 117.4246 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "7"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 72.39) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 248871b3-23a0-46ee-b300-60901f8f27dd)
+    (property "Sheetname" "ch0" (at 87.63 71.6784 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch0.kicad_sch" (at 87.63 76.7846 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "2"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 82.55) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 35eda056-dd90-4522-b87f-15007c4d7ab8)
+    (property "Sheetname" "ch1" (at 87.63 81.8384 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch1.kicad_sch" (at 87.63 86.9446 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "4"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 102.87) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 74ca3d2f-f51f-44a9-be8a-7fbd207e9ce4)
+    (property "Sheetname" "ch3" (at 87.63 102.1584 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch3.kicad_sch" (at 87.63 107.2646 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "6"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 121.92) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid ae25695d-e325-49ba-9e0c-03cb92d84f41)
+    (property "Sheetname" "ch5" (at 87.63 121.2084 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch5.kicad_sch" (at 87.63 126.3146 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "8"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 92.71) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid cfc6e6c1-967a-45a5-a126-355b71abbd82)
+    (property "Sheetname" "ch2" (at 87.63 91.9984 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch2.kicad_sch" (at 87.63 97.1046 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "5"))
+      )
+    )
+  )
+
+  (sheet (at 173.99 71.12) (size 38.1 13.97) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid d08a7b47-c6e9-422c-a3b1-39c069f18926)
+    (property "Sheetname" "pwr" (at 173.99 70.4084 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "pwr.kicad_sch" (at 173.99 85.6746 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "3"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 132.08) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid e113fef7-f1f5-43cd-928d-e31d4d97dedb)
+    (property "Sheetname" "ch6" (at 87.63 131.3684 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch6.kicad_sch" (at 87.63 136.4746 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "9"))
+      )
+    )
+  )
+
+  (sheet (at 87.63 142.24) (size 20.32 3.81) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid f2552a56-809d-4460-80c9-31371ff1701f)
+    (property "Sheetname" "ch7" (at 87.63 141.5284 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "ch7.kicad_sch" (at 87.63 146.6346 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "buffy"
+        (path "/cb6fa2fd-ff54-47cd-ae06-14635e1ef834" (page "10"))
+      )
+    )
+  )
+
+  (sheet_instances
+    (path "/" (page "1"))
+  )
+)

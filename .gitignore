@@ -1,0 +1,11 @@
+buffy-backups
+production
+build
+qa
+.~lock*
+*.sal
+*.log
+*.raw
+*.lck
+*.zip
+*.swp
