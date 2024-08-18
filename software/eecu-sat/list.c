@@ -41,6 +41,8 @@ node_t *ll_find_tail(node_t *head)
 
 void ll_free_all(node_t **head)
 {
+    if (*head == NULL)
+        return;
     node_t *p = *head;
     node_t *del;
 

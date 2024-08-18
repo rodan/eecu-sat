@@ -34,7 +34,7 @@ TARGET_CFLAGS	+= $(MANDATORY_CFLAGS) $(CFLAGS_DBG)
 TARGET_LDFLAGS	+= $(MANDATORY_LDFLAGS) $(LDFLAGS_DBG)
 endif
 
-COVERITY_SCAN_TOKEN := $(shell cat ../.secrets.COVERITY_SCAN_TOKEN 2>/dev/null)
+COVERITY_SCAN_TOKEN := $(shell cat ../../.secrets.COVERITY_SCAN_TOKEN 2>/dev/null)
 
 .PHONY: all
 .PHONY: clean
@@ -93,7 +93,7 @@ coverity: clean clean-lib
 	  --form file=@/tmp/$(PROJ).tgz \
 	  --form version="$(shell ../scripts/getver.sh -i ./version.h -t MAJ.MINbBUILD)" \
 	  --form description="Description" \
-	  https://scan.coverity.com/builds?project=rodan%2Fthpp
+	  https://scan.coverity.com/builds?project=rodan%2Feecu-sat
 
 force_look:
 	@true

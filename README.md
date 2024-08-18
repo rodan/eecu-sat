@@ -1,3 +1,7 @@
+<a href="https://scan.coverity.com/projects/rodan-eecu-sat">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/30615/badge.svg"/>
+</a>
 
 ## eecu-sat (Engine ECU signal acquisition tool)
 

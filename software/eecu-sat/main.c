@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     node_t *node_ptr;
     ssize_t file_size_compare = 0;
     int ret = EXIT_SUCCESS;
-    srzip_context_t *srzip;
+    srzip_context_t *srzip = NULL;
     ssize_t read_len;
 
     if (parse_options(argc, argv)) {
@@ -146,7 +146,9 @@ int main(int argc, char **argv)
 
                 // get file size
                 if ((fp = fopen(node_ptr->file_name, "r")) == NULL) {
-                    errExit("opening input file");
+                    errMsg("opening input file");
+                    ret = EXIT_FAILURE;
+                    goto cleanup;
                 }
                 fseek(fp, 0L, SEEK_END);
                 node_ptr->file_size = ftell(fp);
@@ -186,10 +188,17 @@ int main(int argc, char **argv)
         // skip saleae header
         sprintf(srzip->target_file_name, node_ptr->file_name);
         if ((fd = open(node_ptr->file_name, O_RDONLY)) < 0) {
-            errExit("opening input file");
+            errMsg("opening input file");
+            ret = EXIT_FAILURE;
+            goto cleanup;
         }
-        if (opt_skip_header)
-            lseek(fd, 0x30, SEEK_SET);
+        if (opt_skip_header) {
+            if (lseek(fd, 0x30, SEEK_SET) < 0) {
+                errMsg("opening metadata file");
+                ret = EXIT_FAILURE;
+                goto cleanup;
+            }
+        }
 
         n = 1;
         while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
@@ -209,7 +218,9 @@ int main(int argc, char **argv)
 
     if (opt_metadata_file) {
         if ((fd = open(opt_metadata_file, O_RDONLY)) < 0) {
-            errExit("opening metadata file");
+            errMsg("opening metadata file");
+            ret = EXIT_FAILURE;
+            goto cleanup;
         }
         while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
             snprintf(srzip->target_file_name, PATH_MAX - 1, "metadata");
@@ -223,8 +234,10 @@ int main(int argc, char **argv)
     //ll_print(head);
 
  cleanup:
-    output_srzip_free(&srzip);
-    ll_free_all(&head);
+    if (srzip)
+        output_srzip_free(&srzip);
+    if (head)
+        ll_free_all(&head);
     free(_input_dirname);
     free(_input_basename);
 

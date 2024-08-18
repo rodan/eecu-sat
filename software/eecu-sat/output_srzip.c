@@ -89,6 +89,8 @@ int output_srzip_append(srzip_context_t *ctx)
 
 int output_srzip_free(srzip_context_t **ctx)
 {
+    if (*ctx == NULL)
+        return EXIT_FAILURE;
     srzip_context_t *c = *ctx;
     if (c->buffer != NULL) {
         free(c->buffer);
