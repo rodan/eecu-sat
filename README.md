@@ -26,7 +26,7 @@ project directory structure
  * ./hardware/buffy - kicad based schematics and pcbs for the analog buffer stage
  * ./hardware/pb\_jst-zro*  - kicad based schematics and pcbs for the proxy boards that intercept all EECU signals for a KTM 1090 EECU that uses JST ZRO 36 and 48 pin connectors
  * ./ltspice - spice simulation of the analog buffer schematic
- * ./software/esat - program that processes the raw analog data exported by [Saleae's Logic](https://www.saleae.com/pages/downloads) and converts them into [sigrok](https://sigrok.org/wiki/File_format:Sigrok/v2) files
+ * ./software/eecu-sat - program that processes the raw analog data exported by [Saleae's Logic](https://www.saleae.com/pages/downloads) and converts them into [sigrok](https://sigrok.org/wiki/File_format:Sigrok/v2) files
  * .doc/ktm\_1090\_wiring.ods - ktm 1090 ECU pinout based on wire harness specs present in the service manual
 
 ### Build requirements
@@ -38,15 +38,22 @@ cd ./software/eecu-sat
 make
 ```
 
-### Software features
+### TODO list (In Progress)
 
-esat's scope will cover at least these functions:
+- [ ] 3-point calibration of all analog channels
+  - [ ] use ini file to input calibration paramenters
+  - [ ] analyze analog calibration signals, detect the calibration points
+  - [ ] apply acceptance criteria to input calibration signal
+  - [ ] export slopes and offsets into calibration ini file
+- [ ] synchronize multiple sets of 16 channel acquisitions into one 48 channel srzip file
+- [ ] analyze all 48 channels and automatically detect faults based on a known good reference capture
 
- * convert Logic exported raw analog signals into srzip files that can be loaded in pulseview
- * label each channel based on vehicle service manual schematics
- * 3-point calibration of all analog channels
- * synchronize multiple sets of 16 channel acquisitions into one 48 channel srzip file
- * analyze all 48 channels and automatically detect faults based on a known good reference capture
+### Done
+
+- [x] cover project with coverity static scan
+- [x] convert Logic exported raw analog signals into srzip files that can be loaded in pulseview
+- [x] relabeling capability of channels as seen in pulseview
+
 
 ![tool in use](./doc/img/esat_in_use.jpg)
 

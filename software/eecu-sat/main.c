@@ -24,6 +24,7 @@
 char *opt_default_input_prefix = "analog_[0-9]*.bin";
 char *opt_input_prefix = NULL;
 char *opt_output_file = NULL;
+char *opt_calibration_file = NULL;
 char *opt_metadata_file = NULL;
 bool opt_skip_header = false;
 node_t *head = NULL;
@@ -37,6 +38,8 @@ void show_usage(void)
     fprintf(stdout, "\t\tsrzip output file to be generated\n");
     fprintf(stdout, "\t-s, --skip\n");
     fprintf(stdout, "\t\tskips the first 0x30 bytes (saleae header)\n");
+    fprintf(stdout, "\t-c, --calibration\n");
+    fprintf(stdout, "\t\tget per-channel slopes and offsets to be used for 3 point calibration\n");
     fprintf(stdout, "\t-m, --metadata\n");
     fprintf(stdout, "\t\tuse custom metadata file\n");
     fprintf(stdout, "\t-h, --help\n");
@@ -59,12 +62,13 @@ int parse_options(int argc, char **argv)
             {"output", 1, 0, 'o'},
             {"metadata", 1, 0, 'm'},
             {"skip", 0, 0, 's'},
+            {"calibration", 1, 0, 'c'},
             {"help", 0, 0, 'h'},
             {"version", 0, 0, 'v'},
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:hv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:o:c:hv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
@@ -77,6 +81,9 @@ int parse_options(int argc, char **argv)
             break;
         case 'm':
             opt_metadata_file = optarg;
+            break;
+        case 'c':
+            opt_calibration_file = optarg;
             break;
         case 's':
             opt_skip_header = true;
