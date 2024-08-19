@@ -3,6 +3,8 @@ production
 build
 qa
 .~lock*
+.secrets.*
+tags
 *.sal
 *.log
 *.raw

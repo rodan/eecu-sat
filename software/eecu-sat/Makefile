@@ -5,7 +5,11 @@ TLPI_DIR  = ../lib/tlpi-lib
 TLPI_SRC  = ${TLPI_DIR}/error_functions.c ${TLPI_DIR}/get_num.c
 TLPI_OBJ  = $(patsubst ${TLPI_DIR}/%.c,build/lib/tlpi/%.o,${TLPI_SRC})
 
-LIBS_OBJ = $(TLPI_OBJ)
+INIH_DIR  = ../lib/inih
+INIH_SRC  = ${INIH_DIR}/ini.c
+INIH_OBJ  = $(patsubst ${INIH_DIR}/%.c,build/lib/inih/%.o,${INIH_SRC})
+
+LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ)
 
 INCLUDES  := -I ./ -I $(TLPI_DIR) 
 LOCAL_SRC_C := main.c output_srzip.c list.c
@@ -53,6 +57,11 @@ build/lib/tlpi/%.o: ${TLPI_DIR}/%.c
 	@mkdir -p build/lib/tlpi
 	@echo -e " * $(@F)"
 	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -Wno-write-strings -c $< -o $@
+
+build/lib/inih/%.o: ${INIH_DIR}/%.c
+	@mkdir -p build/lib/inih
+	@echo -e " * $(@F)"
+	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -c $< -o $@
 
 build/%.o: %.c
 	@mkdir -p build
