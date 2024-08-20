@@ -9,11 +9,15 @@ INIH_DIR  = ../lib/inih
 INIH_SRC  = ${INIH_DIR}/ini.c
 INIH_OBJ  = $(patsubst ${INIH_DIR}/%.c,build/lib/inih/%.o,${INIH_SRC})
 
-LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ)
+CONTIKI_DIR  = ../lib/contiki
+CONTIKI_SRC  = ${CONTIKI_DIR}/list.c
+CONTIKI_OBJ  = $(patsubst ${CONTIKI_DIR}/%.c,build/lib/contiki/%.o,${CONTIKI_SRC})
 
-INCLUDES  := -I ./ -I $(TLPI_DIR) 
-LOCAL_SRC_C := main.c output_srzip.c list.c
-SRC        = $(LOCAL_SRC_C) $(TLPI_SRC)
+LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ) $(CONTIKI_OBJ)
+
+INCLUDES  := -I ./ -I $(TLPI_DIR) -I $(INIH_DIR) -I $(CONTIKI_DIR) 
+LOCAL_SRC_C := main.c output_srzip.c
+SRC        = $(LOCAL_SRC_C) $(TLPI_SRC) $(INIH_SRC) $(CONTIKI_SRC)
 EXOUTPUT   = $(PROJ)
 
 LOCAL_OBJECTS     = $(patsubst %.c,build/%.o,${LOCAL_SRC_C})
@@ -63,6 +67,11 @@ build/lib/inih/%.o: ${INIH_DIR}/%.c
 	@echo -e " * $(@F)"
 	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -c $< -o $@
 
+build/lib/contiki/%.o: ${CONTIKI_DIR}/%.c
+	@mkdir -p build/lib/contiki
+	@echo -e " * $(@F)"
+	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -c $< -o $@
+
 build/%.o: %.c
 	@mkdir -p build
 	@echo -e " * $(@F)"
@@ -72,9 +81,9 @@ build/%.o: %.c
 	@echo -e " * $(@F)"
 	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
 
-$(EXOUTPUT): $(LOCAL_OBJECTS) $(TLPI_OBJ)
+$(EXOUTPUT): $(LOCAL_OBJECTS) $(TLPI_OBJ) $(INIH_OBJ) $(CONTIKI_OBJ)
 	@echo -e "\n>> Building $@ as target $(TARGET)"
-	@$(CC) $(TARGET_LDFLAGS) $(LOCAL_OBJECTS) $(TLPI_OBJ) -o $@ && size $@
+	@$(CC) $(TARGET_LDFLAGS) $(LOCAL_OBJECTS) $(TLPI_OBJ) $(INIH_OBJ) $(CONTIKI_OBJ) -o $@ && size $@
 
 clean :
 	@${RM} -rf build

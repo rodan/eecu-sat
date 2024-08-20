@@ -21,13 +21,20 @@
 #include "list.h"
 #include "output_srzip.h"
 
+struct ch_data {
+    struct ch_data *next;
+    char *file_name;
+    char *channel_name;
+    ssize_t file_size;
+};
+typedef struct ch_data ch_data_t;
+
 char *opt_default_input_prefix = "analog_[0-9]*.bin";
 char *opt_input_prefix = NULL;
 char *opt_output_file = NULL;
 char *opt_calibration_file = NULL;
 char *opt_metadata_file = NULL;
 bool opt_skip_header = false;
-node_t *head = NULL;
 
 void show_usage(void)
 {
@@ -106,6 +113,43 @@ int parse_options(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
+void ll_print(ch_data_t *head)
+{
+    ch_data_t *p = head;
+
+    if (head == NULL) {
+        printf("ll is empty\n");
+        return;
+    }
+
+    while (NULL != p) {
+        printf("n %p, [%s] sz %ld  next %p\n", (void *)p, p->file_name, p->file_size, (void *)p->next);
+        if (p->next != NULL) {
+            p = p->next;
+        } else {
+            return;
+        }
+    }
+}
+
+void ll_free_all(ch_data_t **head)
+{
+    if (*head == NULL)
+        return;
+    ch_data_t *p = *head;
+    ch_data_t *del;
+
+    while (NULL != p) {
+        //printf("remove node @%p\n", (void *)p);
+        del = p;
+        free(del->file_name);
+        p = p->next;
+        free(del);
+    }
+
+    *head = NULL;
+}
+
 int main(int argc, char **argv)
 {
     int res;
@@ -119,11 +163,12 @@ int main(int argc, char **argv)
     ssize_t file_name_len;
     FILE *fp;
     int fd;
-    node_t *node_ptr;
+    ch_data_t *ch_data_ptr;
     ssize_t file_size_compare = 0;
     int ret = EXIT_SUCCESS;
     srzip_context_t *srzip = NULL;
     ssize_t read_len;
+    LIST(channels);
 
     if (parse_options(argc, argv)) {
         return EXIT_FAILURE;
@@ -146,20 +191,31 @@ int main(int argc, char **argv)
             if (!res) {
                 //printf("%s matches\n", namelist[i]->d_name);
                 channel_total++;
-                node_ptr = ll_add(&head);
+                ch_data_ptr = calloc(1, sizeof(struct ch_data));
+                if (!ch_data_ptr) {
+                    errMsg("during calloc");
+                    ret = EXIT_FAILURE;
+                    goto cleanup;
+                }
                 file_name_len = strlen(input_dirname) + strlen(namelist[i]->d_name);
-                node_ptr->file_name = (char *)calloc(file_name_len + 3, sizeof(char));
-                snprintf(node_ptr->file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
+                ch_data_ptr->file_name = (char *)calloc(file_name_len + 3, sizeof(char));
+                if (!ch_data_ptr->file_name) {
+                    errMsg("during calloc");
+                    ret = EXIT_FAILURE;
+                    goto cleanup;
+                }
+                snprintf(ch_data_ptr->file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
 
                 // get file size
-                if ((fp = fopen(node_ptr->file_name, "r")) == NULL) {
+                if ((fp = fopen(ch_data_ptr->file_name, "r")) == NULL) {
                     errMsg("opening input file");
                     ret = EXIT_FAILURE;
                     goto cleanup;
                 }
                 fseek(fp, 0L, SEEK_END);
-                node_ptr->file_size = ftell(fp);
+                ch_data_ptr->file_size = ftell(fp);
                 fclose(fp);
+                list_add(channels, ch_data_ptr);
             }
             free(namelist[n]);
         }
@@ -173,28 +229,34 @@ int main(int argc, char **argv)
     }
 
     srzip = (srzip_context_t *) calloc(1, sizeof(struct srzip_context));
+    if (!srzip) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
     srzip->archive_file_name = opt_output_file;
     if (output_srzip_init(srzip) == EXIT_FAILURE) {
         goto cleanup;
     }
 
-    file_size_compare = head->file_size;
-    node_ptr = head;
+    ch_data_ptr = list_head(channels);
+    file_size_compare = ch_data_ptr->file_size;
     i = 0;
 
-    while (NULL != node_ptr) {
+    while (NULL != ch_data_ptr) {
         i++;
-        if (file_size_compare != node_ptr->file_size) {
+        if (file_size_compare != ch_data_ptr->file_size) {
             fprintf(stderr, "error: input files do not have the exact same size\n");
-            fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", node_ptr->file_name,
-                    node_ptr->file_size, file_size_compare);
+            fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->file_name,
+                    ch_data_ptr->file_size, file_size_compare);
             ret = EXIT_FAILURE;
             goto cleanup;
         }
 
         // skip saleae header
-        sprintf(srzip->target_file_name, node_ptr->file_name);
-        if ((fd = open(node_ptr->file_name, O_RDONLY)) < 0) {
+        sprintf(srzip->target_file_name, ch_data_ptr->file_name);
+        if ((fd = open(ch_data_ptr->file_name, O_RDONLY)) < 0) {
             errMsg("opening input file");
             ret = EXIT_FAILURE;
             goto cleanup;
@@ -211,13 +273,13 @@ int main(int argc, char **argv)
         while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
             snprintf(srzip->target_file_name, PATH_MAX - 1, "analog-1-%d-%d", i, n);
             srzip->buffer_len = read_len;
-            output_srzip_append(srzip);
+            output_srzip_append(srzip); // FIXME testing
             n++;
         }
         close(fd);
 
-        if (node_ptr->next != NULL) {
-            node_ptr = node_ptr->next;
+        if (ch_data_ptr->next != NULL) {
+            ch_data_ptr = ch_data_ptr->next;
         } else {
             break;
         }
@@ -238,13 +300,14 @@ int main(int argc, char **argv)
     }
 
     printf("%d channels exported\n", i);
-    //ll_print(head);
+    //ll_print(list_head(channels));
 
  cleanup:
     if (srzip)
         output_srzip_free(&srzip);
-    if (head)
-        ll_free_all(&head);
+    ch_data_ptr = list_head(channels);
+    if (ch_data_ptr)
+        ll_free_all(&ch_data_ptr);
     free(_input_dirname);
     free(_input_basename);
 

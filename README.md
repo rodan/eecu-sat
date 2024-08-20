@@ -52,7 +52,7 @@ make
 
 - [x] cover project with coverity static scan
 - [x] convert Logic exported raw analog signals into srzip files that can be loaded in pulseview
-- [x] relabeling capability of channels as seen in pulseview
+- [x] relabeling capability of channels when seen in pulseview
 
 
 ![tool in use](./doc/img/esat_in_use.jpg)
