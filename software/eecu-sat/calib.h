@@ -38,5 +38,6 @@ struct calib_context {
 typedef struct calib_context calib_context_t;
 
 int calib_read_params_from_file(char *file_name, calib_context_t *ctx);
+int calib_extract_from_data_file(char *file_name, calib_context_t *ctx);
 
 #endif

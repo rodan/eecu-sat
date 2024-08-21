@@ -46,7 +46,7 @@ int calib_read_params_from_file(char *file_name, calib_context_t *ctx)
     int ret = EXIT_SUCCESS;
 
     if (ini_parse(file_name, calib_handler, ctx) < 0) {
-        printf("Can't load calibration ini file\n");
+        fprintf(stderr, "error: can't load calibration file\n");
         ret = EXIT_FAILURE;
     }
 
@@ -55,4 +55,9 @@ int calib_read_params_from_file(char *file_name, calib_context_t *ctx)
     return ret;
 }
 
+int calib_extract_from_data_file(char *file_name, calib_context_t *ctx)
+{
+    int ret = EXIT_SUCCESS;
 
+    return ret;
+}

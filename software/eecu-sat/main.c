@@ -21,6 +21,7 @@
 #include "list.h"
 #include "output_srzip.h"
 #include "calib.h"
+#include "config.h"
 
 struct ch_data {
     struct ch_data *next;
@@ -31,17 +32,16 @@ struct ch_data {
 typedef struct ch_data ch_data_t;
 
 // program arguments
-char *opt_default_input_prefix = "analog_[0-9]*.bin";
-char *opt_input_prefix = NULL;
-char *opt_output_file = NULL;
-char *opt_calibration_file = NULL;
-char *opt_metadata_file = NULL;
-bool opt_skip_header = false;
-bool opt_do_calibration = false;
-bool opt_do_calibration_extract = false;
-bool opt_do_conversion = false;
+static char *opt_default_input_prefix = "analog_[0-9]*.bin";
+static char *opt_input_prefix = NULL;
+static char *opt_output_file = NULL;
+static char *opt_calibration_file = NULL;
+static char *opt_metadata_file = NULL;
+static bool opt_skip_header = false;
+static uint32_t opt_action = ACTION_DO_CONVERT;
+LIST(channels);
 
-void show_usage(void)
+static void show_usage(void)
 {
     fprintf(stdout, "Usage: eecu-sat [-i PREFIX] [-o FILE]\n");
     fprintf(stdout, "\t-i, --input\n");
@@ -58,16 +58,15 @@ void show_usage(void)
     fprintf(stdout, "\t-v, --version\n");
 }
 
-void show_version(void)
+static void show_version(void)
 {
     fprintf(stdout, "eecu-sat version: %d.%d build %d commit %d\n", VER_MAJOR, VER_MINOR, BUILD, COMMIT);
 }
 
-int parse_options(int argc, char **argv)
+static int parse_options(int argc, char **argv)
 {
     int q, opt_idx;
 
-    opt_do_conversion = true;
     while (1) {
         opt_idx = 0;
         static struct option long_options[] = {
@@ -97,9 +96,7 @@ int parse_options(int argc, char **argv)
             break;
         case 'c':
             opt_calibration_file = optarg;
-            opt_do_calibration_extract = true;
-            opt_do_calibration = false;
-            opt_do_conversion = false;
+            opt_action = ACTION_DO_CALIB_INIT;
             break;
         case 's':
             opt_skip_header = true;
@@ -122,7 +119,8 @@ int parse_options(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-void ll_print(ch_data_t *head)
+#ifdef CONFIG_DEBUG
+static void ll_print(ch_data_t *head)
 {
     ch_data_t *p = head;
 
@@ -140,8 +138,9 @@ void ll_print(ch_data_t *head)
         }
     }
 }
+#endif
 
-void ll_free_all(ch_data_t **head)
+static void ll_free_all(ch_data_t **head)
 {
     if (*head == NULL)
         return;
@@ -159,11 +158,130 @@ void ll_free_all(ch_data_t **head)
     *head = NULL;
 }
 
+static int do_calibration_init()
+{
+    int ret = EXIT_SUCCESS;
+    calib_context_t *calib = NULL;
+    ch_data_t *ch_data_ptr;
+
+    calib = (calib_context_t *) calloc(1, sizeof(struct calib_context));
+    if (!calib) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    if ((calib_read_params_from_file(opt_calibration_file, calib)) != EXIT_SUCCESS) {
+        fprintf(stderr, "error during calibration extract procedure\n");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    ch_data_ptr = list_head(channels);
+
+    while (NULL != ch_data_ptr) {
+
+        if (ch_data_ptr->next != NULL) {
+            ch_data_ptr = ch_data_ptr->next;
+        } else {
+            break;
+        }
+    }
+
+cleanup:
+    if (calib)
+        free(calib);
+
+    return ret;
+}
+
+static int do_conversion()
+{
+    int ret = EXIT_SUCCESS;
+    srzip_context_t *srzip = NULL;
+    ch_data_t *ch_data_ptr;
+    ssize_t read_len;
+    int i,n;
+    int fd;
+
+    srzip = (srzip_context_t *) calloc(1, sizeof(struct srzip_context));
+    if (!srzip) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    srzip->archive_file_name = opt_output_file;
+    if (output_srzip_init(srzip) == EXIT_FAILURE) {
+        goto cleanup;
+    }
+
+    ch_data_ptr = list_head(channels);
+    i = 0;
+
+    while (NULL != ch_data_ptr) {
+        i++;
+
+        // skip saleae header
+        sprintf(srzip->target_file_name, ch_data_ptr->file_name);
+        if ((fd = open(ch_data_ptr->file_name, O_RDONLY)) < 0) {
+            errMsg("opening input file");
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+        if (opt_skip_header) {
+            if (lseek(fd, 0x30, SEEK_SET) < 0) {
+                errMsg("opening metadata file");
+                ret = EXIT_FAILURE;
+                goto cleanup;
+            }
+        }
+
+        n = 1;
+        while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
+            snprintf(srzip->target_file_name, PATH_MAX - 1, "analog-1-%d-%d", i, n);
+            srzip->buffer_len = read_len;
+            printf("srzip\n");
+            //output_srzip_append(srzip);
+            n++;
+        }
+        close(fd);
+
+        if (ch_data_ptr->next != NULL) {
+            ch_data_ptr = ch_data_ptr->next;
+        } else {
+            break;
+        }
+    }
+
+    if (opt_metadata_file) {
+        if ((fd = open(opt_metadata_file, O_RDONLY)) < 0) {
+            errMsg("opening metadata file");
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+        while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
+            snprintf(srzip->target_file_name, PATH_MAX - 1, "metadata");
+            srzip->buffer_len = read_len;
+            output_srzip_append(srzip);
+        }
+        close(fd);
+    }
+
+    printf("%d channels exported\n", i);
+
+cleanup:
+    if (srzip)
+        output_srzip_free(&srzip);
+
+    return ret;
+}
+
 int main(int argc, char **argv)
 {
     int res;
     struct dirent **namelist;
-    int n, i;
+    int i, n;
     int channel_total = 0;
     char *_input_dirname;
     char *input_dirname;
@@ -171,14 +289,9 @@ int main(int argc, char **argv)
     char *input_basename;
     ssize_t file_name_len;
     FILE *fp;
-    int fd;
     ch_data_t *ch_data_ptr;
-    ssize_t file_size_compare = 0;
+    ssize_t file_size_compare = -1;
     int ret = EXIT_SUCCESS;
-    srzip_context_t *srzip = NULL;
-    calib_context_t *calib = NULL;
-    ssize_t read_len;
-    LIST(channels);
 
     if (parse_options(argc, argv)) {
         return EXIT_FAILURE;
@@ -192,7 +305,6 @@ int main(int argc, char **argv)
 
     //printf("input files prefix is %s, dirname %s, basename %s\n", opt_input_prefix, input_dirname, input_basename);
     n = scandir(input_dirname, &namelist, NULL, versionsort);
-
     list_init(channels);
 
     // create a linked list with all files that match the filter defined by the --input option
@@ -228,6 +340,15 @@ int main(int argc, char **argv)
                 fseek(fp, 0L, SEEK_END);
                 ch_data_ptr->file_size = ftell(fp);
                 fclose(fp);
+                if (file_size_compare == -1)
+                    file_size_compare = ch_data_ptr->file_size;
+                if (file_size_compare != ch_data_ptr->file_size) {
+                    fprintf(stderr, "error: input files do not have the exact same size\n");
+                    fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->file_name,
+                            ch_data_ptr->file_size, file_size_compare);
+                    ret = EXIT_FAILURE;
+                    goto cleanup;
+                }
                 list_add(channels, ch_data_ptr);
             }
             free(namelist[n]);
@@ -241,110 +362,23 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    if (opt_do_conversion) {
-        srzip = (srzip_context_t *) calloc(1, sizeof(struct srzip_context));
-        if (!srzip) {
-            errMsg("during calloc");
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-
-        srzip->archive_file_name = opt_output_file;
-        if (output_srzip_init(srzip) == EXIT_FAILURE) {
-            goto cleanup;
-        }
-    } else if (opt_do_calibration_extract) {
-        calib = (calib_context_t *) calloc(1, sizeof(struct calib_context));
-        if (!calib) {
-            errMsg("during calloc");
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-
-        if ((calib_read_params_from_file(opt_calibration_file, calib)) != EXIT_SUCCESS) {
-            fprintf(stderr, "error during calibration extract procedure\n");
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-    }
-
-    ch_data_ptr = list_head(channels);
-    file_size_compare = ch_data_ptr->file_size;
-    i = 0;
-
-    while (NULL != ch_data_ptr) {
-        i++;
-        if (file_size_compare != ch_data_ptr->file_size) {
-            fprintf(stderr, "error: input files do not have the exact same size\n");
-            fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->file_name,
-                    ch_data_ptr->file_size, file_size_compare);
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-
-        // skip saleae header
-        if (opt_do_conversion) {
-            sprintf(srzip->target_file_name, ch_data_ptr->file_name);
-        }
-        if ((fd = open(ch_data_ptr->file_name, O_RDONLY)) < 0) {
-            errMsg("opening input file");
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-        if (opt_skip_header) {
-            if (lseek(fd, 0x30, SEEK_SET) < 0) {
-                errMsg("opening metadata file");
-                ret = EXIT_FAILURE;
-                goto cleanup;
-            }
-        }
-
-        if (opt_do_conversion) {
-            n = 1;
-            while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
-                snprintf(srzip->target_file_name, PATH_MAX - 1, "analog-1-%d-%d", i, n);
-                srzip->buffer_len = read_len;
-                if (opt_do_conversion) {
-                    printf("srzip\n");
-                    //output_srzip_append(srzip);
-                }
-                n++;
-            }
-        }
-        close(fd);
-
-        if (ch_data_ptr->next != NULL) {
-            ch_data_ptr = ch_data_ptr->next;
-        } else {
+    switch (opt_action) {
+        case ACTION_DO_CONVERT:
+            ret = do_conversion();
             break;
-        }
+        case ACTION_DO_CALIB_INIT:
+            ret = do_calibration_init();
+            break;
+        default:
+            break;
     }
 
-    if (opt_do_conversion) {
-        if (opt_metadata_file) {
-            if ((fd = open(opt_metadata_file, O_RDONLY)) < 0) {
-                errMsg("opening metadata file");
-                ret = EXIT_FAILURE;
-                goto cleanup;
-            }
-            while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
-                snprintf(srzip->target_file_name, PATH_MAX - 1, "metadata");
-                srzip->buffer_len = read_len;
-                output_srzip_append(srzip);
-            }
-            close(fd);
-        }
-
-        printf("%d channels exported\n", i);
-    }
-    //ll_print(list_head(channels));
+#ifdef CONFIG_DEBUG
+    ll_print(list_head(channels));
+#endif
 
  cleanup:
-    if (srzip)
-        output_srzip_free(&srzip);
     ch_data_ptr = list_head(channels);
-    if (calib)
-        free(calib);
     if (ch_data_ptr)
         ll_free_all(&ch_data_ptr);
     free(_input_dirname);
@@ -352,4 +386,3 @@ int main(int argc, char **argv)
 
     return ret;
 }
-
