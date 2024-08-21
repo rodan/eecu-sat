@@ -232,6 +232,7 @@ static int do_conversion()
         if (opt_skip_header) {
             if (lseek(fd, 0x30, SEEK_SET) < 0) {
                 errMsg("opening metadata file");
+                close(fd);
                 ret = EXIT_FAILURE;
                 goto cleanup;
             }
