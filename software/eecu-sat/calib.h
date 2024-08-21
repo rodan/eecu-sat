@@ -10,6 +10,7 @@ struct calib_globals {
     double r_2;
     double r_acc;
     double r_stab;
+    uint64_t r_stab_cnt;
     double r_oob_floor;
     double r_oob_ceil;
     double t_0;
@@ -33,7 +34,9 @@ typedef struct calib_channel cc_t;
 
 struct calib_context {
     cg_t globals;
-    
 };
+typedef struct calib_context calib_context_t;
+
+int calib_read_params_from_file(char *file_name, calib_context_t *ctx);
 
 #endif
