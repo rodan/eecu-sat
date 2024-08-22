@@ -26,7 +26,8 @@
 struct ch_data {
     struct ch_data *next;
     char *file_name;
-    char *channel_name;
+    //char *channel_name;
+    uint16_t id;
     ssize_t file_size;
 };
 typedef struct ch_data ch_data_t;
@@ -161,18 +162,12 @@ static void ll_free_all(ch_data_t **head)
 static int do_calibration_init()
 {
     int ret = EXIT_SUCCESS;
-    calib_context_t *calib = NULL;
+    calib_context_t *ctx = NULL;
+    calib_globals_t globals;
     ch_data_t *ch_data_ptr;
 
-    calib = (calib_context_t *) calloc(1, sizeof(struct calib_context));
-    if (!calib) {
-        errMsg("during calloc");
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-
-    if ((calib_read_params_from_file(opt_calibration_file, calib)) != EXIT_SUCCESS) {
-        fprintf(stderr, "error during calibration extract procedure\n");
+    if ((calib_read_params_from_file(opt_calibration_file, &globals)) != EXIT_SUCCESS) {
+        fprintf(stderr, "error during calibration init procedure\n");
         ret = EXIT_FAILURE;
         goto cleanup;
     }
@@ -180,6 +175,20 @@ static int do_calibration_init()
     ch_data_ptr = list_head(channels);
 
     while (NULL != ch_data_ptr) {
+        ctx = (calib_context_t *) calloc(1, sizeof(struct calib_context));
+        if (!ctx) {
+            errMsg("during calloc");
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+        ctx->globals = &globals;
+        ctx->channel_data.id = ch_data_ptr->id;
+        ctx->channel_data.calibration_type = CALIB_TYPE_3_POINT;
+        if ((calib_init_from_data_file(ch_data_ptr->file_name, opt_calibration_file, ctx)) != EXIT_SUCCESS) {
+            fprintf(stderr, "error during calib_init_from_data_file()\n");
+        }
+
+        free(ctx);
 
         if (ch_data_ptr->next != NULL) {
             ch_data_ptr = ch_data_ptr->next;
@@ -189,8 +198,6 @@ static int do_calibration_init()
     }
 
 cleanup:
-    if (calib)
-        free(calib);
 
     return ret;
 }
@@ -242,8 +249,8 @@ static int do_conversion()
         while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
             snprintf(srzip->target_file_name, PATH_MAX - 1, "analog-1-%d-%d", i, n);
             srzip->buffer_len = read_len;
-            printf("srzip\n");
-            //output_srzip_append(srzip);
+            //printf("srzip\n");
+            output_srzip_append(srzip);
             n++;
         }
         close(fd);
@@ -331,6 +338,7 @@ int main(int argc, char **argv)
                     goto cleanup;
                 }
                 snprintf(ch_data_ptr->file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
+                ch_data_ptr->id = channel_total;
 
                 // get file size
                 if ((fp = fopen(ch_data_ptr->file_name, "r")) == NULL) {
