@@ -8,6 +8,9 @@
 #define      CALIB_P1_DONE  0x2
 #define      CALIB_P2_DONE  0x4
 
+#define  CALIB_INI_GLOBALS  0x1
+#define  CALIB_INI_CHANNEL  0x2
+
 struct calib_globals {
     double r_0;
     double r_1;
@@ -57,7 +60,7 @@ struct calib_context {
 };
 typedef struct calib_context calib_context_t;
 
-int calib_read_params_from_file(char *file_name, calib_globals_t *ctx);
+int calib_read_params_from_file(char *file_name, void *ctx, uint8_t flags);
 int calib_init_from_data_file(char *data_file_name, char *ini_file_name, calib_context_t *ctx);
 
 #endif

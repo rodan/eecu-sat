@@ -12,7 +12,7 @@
 #include "ini.h"
 #include "calib.h"
 
-static int calib_inih_handler(void* data, const char* section, const char* name,
+static int calib_inih_globals_handler(void* data, const char* section, const char* name,
                    const char* value)
 {
     calib_globals_t *globals = (calib_globals_t *)data;
@@ -46,12 +46,49 @@ static int calib_inih_handler(void* data, const char* section, const char* name,
     return 1;
 }
 
-int calib_read_params_from_file(char *file_name, calib_globals_t *ctx)
+static int calib_inih_channel_handler(void* data, const char* section, const char* name,
+                   const char* value)
+{
+    calib_channel_t *ch = (calib_channel_t *)data;
+    char ch_id[LINE_MAX_SZ];
+
+    snprintf(ch_id, LINE_MAX_SZ, "CH%d", ch->id);
+
+    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+    if (MATCH(ch_id, "type")) {
+        ch->calibration_type = atoi(value);
+    } else if (MATCH(ch_id, "midpoint")) {
+        sscanf(value, "%lf", &ch->midpoint);
+    } else if (MATCH(ch_id, "slope_0")) {
+        sscanf(value, "%lf", &ch->slope_0);
+    } else if (MATCH(ch_id, "offset_0")) {
+        sscanf(value, "%lf", &ch->offset_0);
+    } else if (MATCH(ch_id, "slope_1")) {
+        sscanf(value, "%lf", &ch->slope_1);
+    } else if (MATCH(ch_id, "offset_1")) {
+        sscanf(value, "%lf", &ch->offset_1);
+    } else {
+        return 0;  /* unknown section/name, error */
+    }
+    return 1;
+}
+
+int calib_read_params_from_file(char *file_name, void *ctx, uint8_t flags)
 {
     int ret = EXIT_SUCCESS;
 
-    if (ini_parse(file_name, calib_inih_handler, ctx) < 0) {
-        fprintf(stderr, "error: can't load calibration file\n");
+    if (flags == CALIB_INI_GLOBALS) {
+        if (ini_parse(file_name, calib_inih_globals_handler, ctx) < 0) {
+            fprintf(stderr, "error: can't load calibration file\n");
+            ret = EXIT_FAILURE;
+        }
+    } else if (flags == CALIB_INI_CHANNEL) {
+        if (ini_parse(file_name, calib_inih_channel_handler, ctx) < 0) {
+            fprintf(stderr, "error: can't load calibration file\n");
+            ret = EXIT_FAILURE;
+        }
+    } else {
+        fprintf(stderr, "improper use of 'flags' in calib_read_params_from_file()\n");
         ret = EXIT_FAILURE;
     }
 
@@ -81,8 +118,6 @@ static void calib_check_stab(calib_globals_t *g, calib_channel_t *c)
     }
 }
 
-#define MAX_LINE_SZ  64
-
 int calib_init_from_data_file(char *data_file_name, char *ini_file_name, calib_context_t *ctx)
 {
     int ret = EXIT_SUCCESS;
@@ -97,7 +132,7 @@ int calib_init_from_data_file(char *data_file_name, char *ini_file_name, calib_c
     calib_channel_t *c = &ctx->channel_data;
     double r0_min, r0_max, r1_min, r1_max, r2_min, r2_max;
     char *cco = NULL;
-    char ccol[MAX_LINE_SZ];
+    char ccol[LINE_MAX_SZ];
 
     buffer = (float *) calloc(CHUNK_SIZE / sizeof(float), sizeof(float));
     if (!buffer) {
@@ -198,19 +233,19 @@ int calib_init_from_data_file(char *data_file_name, char *ini_file_name, calib_c
         goto cleanup;
     }
 
-    snprintf(ccol, MAX_LINE_SZ, "[CH%d]\n", c->id);
+    snprintf(ccol, LINE_MAX_SZ, "[CH%d]\n", c->id);
     strcat(cco, ccol);
-    snprintf(ccol, MAX_LINE_SZ, "type=%d\n", c->calibration_type);
+    snprintf(ccol, LINE_MAX_SZ, "type=%d\n", c->calibration_type);
     strcat(cco, ccol);
-    snprintf(ccol, MAX_LINE_SZ, "midpoint=%lf\n", c->midpoint);
+    snprintf(ccol, LINE_MAX_SZ, "midpoint=%lf\n", c->midpoint);
     strcat(cco, ccol);
-    snprintf(ccol, MAX_LINE_SZ, "slope_0=%lf\n", c->slope_0);
+    snprintf(ccol, LINE_MAX_SZ, "slope_0=%lf\n", c->slope_0);
     strcat(cco, ccol);
-    snprintf(ccol, MAX_LINE_SZ, "offset_0=%lf\n", c->offset_0);
+    snprintf(ccol, LINE_MAX_SZ, "offset_0=%lf\n", c->offset_0);
     strcat(cco, ccol);
-    snprintf(ccol, MAX_LINE_SZ, "slope_1=%lf\n", c->slope_1);
+    snprintf(ccol, LINE_MAX_SZ, "slope_1=%lf\n", c->slope_1);
     strcat(cco, ccol);
-    snprintf(ccol, MAX_LINE_SZ, "offset_1=%lf\n\n", c->offset_1);
+    snprintf(ccol, LINE_MAX_SZ, "offset_1=%lf\n\n", c->offset_1);
     strcat(cco, ccol);
 
     if ((ifd = open(ini_file_name, O_WRONLY | O_APPEND)) < 0) {

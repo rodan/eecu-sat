@@ -25,10 +25,11 @@
 
 struct ch_data {
     struct ch_data *next;
-    char *file_name;
+    char *input_file_name;
+    char *output_file_name;
     //char *channel_name;
     uint16_t id;
-    ssize_t file_size;
+    ssize_t input_file_size;
 };
 typedef struct ch_data ch_data_t;
 
@@ -53,6 +54,7 @@ static void show_usage(void)
     fprintf(stdout, "\t\tskips the first 0x30 bytes (saleae header)\n");
     fprintf(stdout, "\t-c, --calibration\n");
     fprintf(stdout, "\t\tget per-channel slopes and offsets to be used for 3 point calibration\n");
+    fprintf(stdout, "\t--initcal");
     fprintf(stdout, "\t-m, --metadata\n");
     fprintf(stdout, "\t\tuse custom metadata file\n");
     fprintf(stdout, "\t-h, --help\n");
@@ -76,12 +78,13 @@ static int parse_options(int argc, char **argv)
             {"metadata", 1, 0, 'm'},
             {"skip", 0, 0, 's'},
             {"calibration", 1, 0, 'c'},
+            {"initcal", 0, 0, 'x'},
             {"help", 0, 0, 'h'},
             {"version", 0, 0, 'v'},
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:c:hv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:o:c:xhv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
@@ -97,7 +100,12 @@ static int parse_options(int argc, char **argv)
             break;
         case 'c':
             opt_calibration_file = optarg;
-            opt_action = ACTION_DO_CALIB_INIT;
+            opt_action |= ACTION_DO_CALIBRATION;
+            opt_action &= ~ACTION_DO_CONVERT;
+            break;
+        case 'x':
+            opt_action |= ACTION_DO_CALIB_INIT;
+            opt_action &= ~ACTION_DO_CONVERT;
             break;
         case 's':
             opt_skip_header = true;
@@ -131,7 +139,7 @@ static void ll_print(ch_data_t *head)
     }
 
     while (NULL != p) {
-        printf("n %p, [%s] sz %ld  next %p\n", (void *)p, p->file_name, p->file_size, (void *)p->next);
+        printf("n %p, [%s] sz %ld  next %p\n", (void *)p, p->input_file_name, p->input_file_size, (void *)p->next);
         if (p->next != NULL) {
             p = p->next;
         } else {
@@ -151,12 +159,66 @@ static void ll_free_all(ch_data_t **head)
     while (NULL != p) {
         //printf("remove node @%p\n", (void *)p);
         del = p;
-        free(del->file_name);
+        if (del->input_file_name)
+            free(del->input_file_name);
+        if (del->output_file_name)
+            free(del->output_file_name);
         p = p->next;
         free(del);
     }
 
     *head = NULL;
+}
+
+static int do_calibration()
+{
+    int ret = EXIT_SUCCESS;
+    calib_context_t *ctx = NULL;
+    calib_globals_t globals;
+    ch_data_t *ch_data_ptr;
+
+    if ((calib_read_params_from_file(opt_calibration_file, &globals, CALIB_INI_GLOBALS)) != EXIT_SUCCESS) {
+        fprintf(stderr, "error during calib_read_params_from_file()\n");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    ch_data_ptr = list_head(channels);
+
+    while (NULL != ch_data_ptr) {
+        ctx = (calib_context_t *) calloc(1, sizeof(struct calib_context));
+        if (!ctx) {
+            errMsg("during calloc");
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+        ctx->globals = &globals;
+        ctx->channel_data.id = ch_data_ptr->id;
+
+        if ((calib_read_params_from_file(opt_calibration_file, &ctx->channel_data, CALIB_INI_CHANNEL)) != EXIT_SUCCESS) {
+            fprintf(stderr, "error during calib_read_params_from_file()\n");
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+
+        ctx->channel_data.calibration_type = CALIB_TYPE_3_POINT;
+        //if ((calib_init_from_data_file(ch_data_ptr->file_name, opt_calibration_file, ctx)) != EXIT_SUCCESS) {
+        //    fprintf(stderr, "error during calib_init_from_data_file()\n");
+        //}
+        printf("channel %d %s %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name, ch_data_ptr->output_file_name);
+
+        free(ctx);
+
+        if (ch_data_ptr->next != NULL) {
+            ch_data_ptr = ch_data_ptr->next;
+        } else {
+            break;
+        }
+    }
+
+cleanup:
+
+    return ret;
 }
 
 static int do_calibration_init()
@@ -166,8 +228,8 @@ static int do_calibration_init()
     calib_globals_t globals;
     ch_data_t *ch_data_ptr;
 
-    if ((calib_read_params_from_file(opt_calibration_file, &globals)) != EXIT_SUCCESS) {
-        fprintf(stderr, "error during calibration init procedure\n");
+    if ((calib_read_params_from_file(opt_calibration_file, &globals, CALIB_INI_GLOBALS)) != EXIT_SUCCESS) {
+        fprintf(stderr, "error during calib_read_params_from_file()\n");
         ret = EXIT_FAILURE;
         goto cleanup;
     }
@@ -184,7 +246,7 @@ static int do_calibration_init()
         ctx->globals = &globals;
         ctx->channel_data.id = ch_data_ptr->id;
         ctx->channel_data.calibration_type = CALIB_TYPE_3_POINT;
-        if ((calib_init_from_data_file(ch_data_ptr->file_name, opt_calibration_file, ctx)) != EXIT_SUCCESS) {
+        if ((calib_init_from_data_file(ch_data_ptr->input_file_name, opt_calibration_file, ctx)) != EXIT_SUCCESS) {
             fprintf(stderr, "error during calib_init_from_data_file()\n");
         }
 
@@ -230,8 +292,8 @@ static int do_conversion()
         i++;
 
         // skip saleae header
-        sprintf(srzip->target_file_name, ch_data_ptr->file_name);
-        if ((fd = open(ch_data_ptr->file_name, O_RDONLY)) < 0) {
+        sprintf(srzip->target_file_name, ch_data_ptr->input_file_name);
+        if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
             errMsg("opening input file");
             ret = EXIT_FAILURE;
             goto cleanup;
@@ -330,31 +392,44 @@ int main(int argc, char **argv)
                     ret = EXIT_FAILURE;
                     goto cleanup;
                 }
+
                 file_name_len = strlen(input_dirname) + strlen(namelist[i]->d_name);
-                ch_data_ptr->file_name = (char *)calloc(file_name_len + 3, sizeof(char));
-                if (!ch_data_ptr->file_name) {
+                ch_data_ptr->input_file_name = (char *)calloc(file_name_len + 3, sizeof(char));
+                if (!ch_data_ptr->input_file_name) {
                     errMsg("during calloc");
                     ret = EXIT_FAILURE;
                     goto cleanup;
                 }
-                snprintf(ch_data_ptr->file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
+                snprintf(ch_data_ptr->input_file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
+
+                if (opt_output_file && (opt_action & ACTION_DO_CALIBRATION)) {
+                    file_name_len = strlen(opt_output_file) + strlen(namelist[i]->d_name);
+                    ch_data_ptr->output_file_name = (char *)calloc(file_name_len + 3, sizeof(char));
+                    if (!ch_data_ptr->output_file_name) {
+                        errMsg("during calloc");
+                        ret = EXIT_FAILURE;
+                        goto cleanup;
+                    }
+                    snprintf(ch_data_ptr->output_file_name, file_name_len + 2, "%s/%s", opt_output_file, namelist[i]->d_name);
+                }
+
                 ch_data_ptr->id = channel_total;
 
                 // get file size
-                if ((fp = fopen(ch_data_ptr->file_name, "r")) == NULL) {
+                if ((fp = fopen(ch_data_ptr->input_file_name, "r")) == NULL) {
                     errMsg("opening input file");
                     ret = EXIT_FAILURE;
                     goto cleanup;
                 }
                 fseek(fp, 0L, SEEK_END);
-                ch_data_ptr->file_size = ftell(fp);
+                ch_data_ptr->input_file_size = ftell(fp);
                 fclose(fp);
                 if (file_size_compare == -1)
-                    file_size_compare = ch_data_ptr->file_size;
-                if (file_size_compare != ch_data_ptr->file_size) {
+                    file_size_compare = ch_data_ptr->input_file_size;
+                if (file_size_compare != ch_data_ptr->input_file_size) {
                     fprintf(stderr, "error: input files do not have the exact same size\n");
-                    fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->file_name,
-                            ch_data_ptr->file_size, file_size_compare);
+                    fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->input_file_name,
+                            ch_data_ptr->input_file_size, file_size_compare);
                     ret = EXIT_FAILURE;
                     goto cleanup;
                 }
@@ -371,15 +446,12 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    switch (opt_action) {
-        case ACTION_DO_CONVERT:
-            ret = do_conversion();
-            break;
-        case ACTION_DO_CALIB_INIT:
-            ret = do_calibration_init();
-            break;
-        default:
-            break;
+    if (opt_action & ACTION_DO_CONVERT) {
+        ret = do_conversion();
+    } else if (opt_action & ACTION_DO_CALIB_INIT) {
+        ret = do_calibration_init();
+    } else if (opt_action & ACTION_DO_CALIBRATION) {
+        ret = do_calibration();
     }
 
 #ifdef CONFIG_DEBUG
