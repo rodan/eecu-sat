@@ -19,6 +19,8 @@
 #include "proj.h"
 #include "version.h"
 #include "list.h"
+#include "output.h"
+#include "output_analog.h"
 #include "output_srzip.h"
 #include "calib.h"
 #include "config.h"
@@ -37,6 +39,7 @@ typedef struct ch_data ch_data_t;
 static char *opt_default_input_prefix = "analog_[0-9]*.bin";
 static char *opt_input_prefix = NULL;
 static char *opt_output_file = NULL;
+static char *opt_output_format = NULL;
 static char *opt_calibration_file = NULL;
 static char *opt_metadata_file = NULL;
 static bool opt_skip_header = false;
@@ -49,7 +52,9 @@ static void show_usage(void)
     fprintf(stdout, "\t-i, --input\n");
     fprintf(stdout, "\t\ta prefix that defines the input raw analog files. default is %s\n", opt_default_input_prefix);
     fprintf(stdout, "\t-o, --output=FILE\n");
-    fprintf(stdout, "\t\tsrzip output file to be generated\n");
+    fprintf(stdout, "\t\toutput file to be generated\n");
+    fprintf(stdout, "\t-O, --output-format=FORMAT\n");
+    fprintf(stdout, "\t\tconvert data to FORMAT during output\n");
     fprintf(stdout, "\t-s, --skip\n");
     fprintf(stdout, "\t\tskips the first 0x30 bytes (saleae header)\n");
     fprintf(stdout, "\t-c, --calibration\n");
@@ -57,6 +62,8 @@ static void show_usage(void)
     fprintf(stdout, "\t--initcal");
     fprintf(stdout, "\t-m, --metadata\n");
     fprintf(stdout, "\t\tuse custom metadata file\n");
+    fprintf(stdout, "\t-l, --list\n");
+    fprintf(stdout, "\t\tlist known output formats\n");
     fprintf(stdout, "\t-h, --help\n");
     fprintf(stdout, "\t-v, --version\n");
 }
@@ -64,6 +71,22 @@ static void show_usage(void)
 static void show_version(void)
 {
     fprintf(stdout, "eecu-sat version: %d.%d build %d commit %d\n", VER_MAJOR, VER_MINOR, BUILD, COMMIT);
+}
+
+static void show_capabilities(void)
+{
+    const struct sat_output_module **omod;
+
+    omod = sat_output_list();
+    if (*omod == NULL)
+        return;
+
+    printf("Supported ouput formats:\n");
+    while (*omod) {
+        printf("  %s \t\t%s\n", sat_output_id_get(*omod), sat_output_description_get(*omod));
+        *omod++;
+    }
+
 }
 
 static int parse_options(int argc, char **argv)
@@ -75,16 +98,18 @@ static int parse_options(int argc, char **argv)
         static struct option long_options[] = {
             {"input", 1, 0, 'i'},
             {"output", 1, 0, 'o'},
+            {"output-format", 1, 0, 'O'},
             {"metadata", 1, 0, 'm'},
             {"skip", 0, 0, 's'},
             {"calibration", 1, 0, 'c'},
             {"initcal", 0, 0, 'x'},
+            {"list", 0, 0, 'L'},
             {"help", 0, 0, 'h'},
             {"version", 0, 0, 'v'},
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:c:xhv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:o:O:c:xhLv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
@@ -94,6 +119,9 @@ static int parse_options(int argc, char **argv)
             break;
         case 'o':
             opt_output_file = optarg;
+            break;
+        case 'O':
+            opt_output_format = optarg;
             break;
         case 'm':
             opt_metadata_file = optarg;
@@ -109,6 +137,9 @@ static int parse_options(int argc, char **argv)
             break;
         case 's':
             opt_skip_header = true;
+            break;
+        case 'L':
+            show_capabilities();
             break;
         case 'h':
             show_usage();
@@ -267,21 +298,31 @@ cleanup:
 static int do_conversion()
 {
     int ret = EXIT_SUCCESS;
-    srzip_context_t *srzip = NULL;
+    struct sat_output *o = NULL;
     ch_data_t *ch_data_ptr;
     ssize_t read_len;
     int i,n;
     int fd;
+    struct sr_datafeed_packet pkt;
 
-    srzip = (srzip_context_t *) calloc(1, sizeof(struct srzip_context));
-    if (!srzip) {
+    o = (struct sat_output *) calloc(1, sizeof(struct sat_output));
+    if (!o) {
         errMsg("during calloc");
         ret = EXIT_FAILURE;
         goto cleanup;
     }
 
-    srzip->archive_file_name = opt_output_file;
-    if (output_srzip_init(srzip) == EXIT_FAILURE) {
+    pkt.payload = (uint8_t *) calloc(CHUNK_SIZE, 1);
+    if (!pkt.payload) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    //o->module = &output_srzip;
+    o->module = &output_analog;
+    o->filename = opt_output_file;
+    if (o->module->init(o) == EXIT_FAILURE) {
         goto cleanup;
     }
 
@@ -291,8 +332,6 @@ static int do_conversion()
     while (NULL != ch_data_ptr) {
         i++;
 
-        // skip saleae header
-        sprintf(srzip->target_file_name, ch_data_ptr->input_file_name);
         if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
             errMsg("opening input file");
             ret = EXIT_FAILURE;
@@ -308,11 +347,12 @@ static int do_conversion()
         }
 
         n = 1;
-        while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
-            snprintf(srzip->target_file_name, PATH_MAX - 1, "analog-1-%d-%d", i, n);
-            srzip->buffer_len = read_len;
-            //printf("srzip\n");
-            output_srzip_append(srzip);
+        while ((read_len = read(fd, pkt.payload, CHUNK_SIZE)) > 0) {
+            o->ch = i;
+            o->chunk = n;
+            pkt.type = SR_DF_ANALOG;
+            pkt.payload_size = read_len;
+            o->module->receive(o, &pkt);
             n++;
         }
         close(fd);
@@ -330,10 +370,10 @@ static int do_conversion()
             ret = EXIT_FAILURE;
             goto cleanup;
         }
-        while ((read_len = read(fd, srzip->buffer, CHUNK_SIZE)) > 0) {
-            snprintf(srzip->target_file_name, PATH_MAX - 1, "metadata");
-            srzip->buffer_len = read_len;
-            output_srzip_append(srzip);
+        while ((read_len = read(fd, pkt.payload, CHUNK_SIZE)) > 0) {
+            pkt.type = SR_DF_META;
+            pkt.payload_size = read_len;
+            o->module->receive(o, &pkt);
         }
         close(fd);
     }
@@ -341,8 +381,10 @@ static int do_conversion()
     printf("%d channels exported\n", i);
 
 cleanup:
-    if (srzip)
-        output_srzip_free(&srzip);
+    if (o)
+        o->module->cleanup(o);
+    if (pkt.payload)
+        free(pkt.payload);
 
     return ret;
 }

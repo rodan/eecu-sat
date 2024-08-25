@@ -4,80 +4,86 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
-
 #include <linux/limits.h>
-
+#include <zip.h>
 #include "proj.h"
 #include "tlpi_hdr.h"
+#include "output.h"
 #include "output_srzip.h"
 
-int output_srzip_init(srzip_context_t *ctx)
+struct out_context {
+    char *target_filename; // filename within the archive
+};
+
+static int init(struct sat_output *o)
 {
-    unlink(ctx->archive_file_name);
+    struct zip_source *src;
+    struct zip *archive;
+    struct out_context *outc;
+    unlink(o->filename);
 
-    ctx->buffer = (char *)calloc(CHUNK_SIZE, 1);
-    if (ctx->buffer == NULL) {
+    outc = (struct out_context *)calloc(1, sizeof(struct out_context));
+    o->priv = outc;
+
+    outc->target_filename = (char *)calloc(PATH_MAX, 1);
+    if (outc->target_filename == NULL) {
         errMsg("calloc error");
         return EXIT_FAILURE;
     }
 
-    ctx->target_file_name = (char *)calloc(PATH_MAX, 1);
-    if (ctx->target_file_name == NULL) {
-        errMsg("calloc error");
-        return EXIT_FAILURE;
-    }
-
-    ctx->archive = zip_open(ctx->archive_file_name, ZIP_CREATE, NULL);
-    if (!ctx->archive) {
+    archive = zip_open(o->filename, ZIP_CREATE, NULL);
+    if (!archive) {
         fprintf(stderr, "error: zip_open() has failed\n");
         return EXIT_FAILURE;
     }
 
-    sprintf(ctx->target_file_name, "version");
-    snprintf(ctx->buffer, 2, "2");
-    ctx->buffer_len = 1;
-    output_srzip_add(ctx);
-
-    if (zip_close(ctx->archive) < 0) {
-        fprintf(stderr, "Error saving zipfile: %s", zip_strerror(ctx->archive));
-        zip_discard(ctx->archive);
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int output_srzip_add(srzip_context_t *ctx)
-{
-    struct zip_source *src;
-
-    src = zip_source_buffer(ctx->archive, ctx->buffer, ctx->buffer_len, 0);
-    if (zip_file_add(ctx->archive, ctx->target_file_name, src, ZIP_FL_ENC_UTF_8) < 0) {
-        fprintf(stderr, "Error adding file into archive: %s", zip_strerror(ctx->archive));
+    src = zip_source_buffer(archive, "2", 1, 0);
+    if (zip_file_add(archive, "version", src, ZIP_FL_ENC_UTF_8) < 0) {
+        fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
         zip_source_free(src);
-        zip_discard(ctx->archive);
+        zip_discard(archive);
+        return EXIT_FAILURE;
+    }
+
+    if (zip_close(archive) < 0) {
+        fprintf(stderr, "Error saving zipfile: %s", zip_strerror(archive));
+        zip_discard(archive);
         return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
 }
 
-int output_srzip_append(srzip_context_t *ctx)
+static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
 {
     struct zip *archive;
     struct zip_source *src;
+    struct out_context *outc = o->priv;
 
-    if (!(archive = zip_open(ctx->archive_file_name, 0, NULL)))
+    if (!(archive = zip_open(o->filename, 0, NULL)))
         return EXIT_FAILURE;
 
-    src = zip_source_buffer(archive, ctx->buffer, ctx->buffer_len, 0);
-    if (zip_file_add(archive, ctx->target_file_name, src, ZIP_FL_ENC_UTF_8) < 0) {
+    src = zip_source_buffer(archive, pkt->payload, pkt->payload_size, 0);
+
+    switch (pkt->type) {
+    case SR_DF_META:
+        snprintf(outc->target_filename, PATH_MAX - 1, "metadata");
+        break;
+    case SR_DF_ANALOG:
+        snprintf(outc->target_filename, PATH_MAX - 1, "analog-1-%d-%d", o->ch, o->chunk);
+        break;
+    default:
+        goto cleanup;
+    }
+
+    if (zip_file_add(archive, outc->target_filename, src, ZIP_FL_ENC_UTF_8) < 0) {
         fprintf(stderr, "Failed to add chunk: %s", zip_strerror(archive));
         zip_source_free(src);
         zip_discard(archive);
         return EXIT_FAILURE;
     }
 
+ cleanup:
     if (zip_close(archive) < 0) {
         fprintf(stderr, "Error saving session file: %s", zip_strerror(archive));
         zip_discard(archive);
@@ -87,21 +93,30 @@ int output_srzip_append(srzip_context_t *ctx)
     return EXIT_SUCCESS;
 }
 
-int output_srzip_free(srzip_context_t **ctx)
+static int cleanup(struct sat_output *o)
 {
-    if (*ctx == NULL)
+    struct out_context *outc;
+
+    if (o == NULL)
         return EXIT_FAILURE;
-    srzip_context_t *c = *ctx;
-    if (c->buffer != NULL) {
-        free(c->buffer);
-    }
 
-    if (c->target_file_name)
-        free(c->target_file_name);
+    outc = o->priv;
 
-    if (c)
-        free(c);
+    if (outc->target_filename)
+        free(outc->target_filename);
 
-    *ctx = NULL;
+    if (o->priv)
+        free(o->priv);
+
     return EXIT_SUCCESS;
 }
+
+struct sat_output_module output_srzip = {
+    .id = "srzip",
+    .name = "srzip",
+    .desc = "sigrok session file format data",
+    .exts = (const char *[]) {"sr", NULL},
+    .init = init,
+    .receive = receive,
+    .cleanup = cleanup,
+};
