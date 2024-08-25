@@ -160,7 +160,7 @@ static int parse_options(int argc, char **argv)
 }
 
 #ifdef CONFIG_DEBUG
-static void ll_print(ch_data_t *head)
+void ll_print(ch_data_t *head)
 {
     ch_data_t *p = head;
 
@@ -305,6 +305,11 @@ static int do_conversion()
     int fd;
     struct sr_datafeed_packet pkt;
 
+    if (!opt_output_format) {
+        fprintf(stderr, "output format not selected\n");
+        return EXIT_FAILURE;
+    }
+
     o = (struct sat_output *) calloc(1, sizeof(struct sat_output));
     if (!o) {
         errMsg("during calloc");
@@ -319,10 +324,15 @@ static int do_conversion()
         goto cleanup;
     }
 
-    //o->module = &output_srzip;
-    o->module = &output_analog;
+    o->module = sat_output_find(opt_output_format);
+    if (o->module == NULL) {
+        fprintf(stderr, "invalid output module '%s'\n", opt_output_format);
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
     o->filename = opt_output_file;
     if (o->module->init(o) == EXIT_FAILURE) {
+        ret = EXIT_FAILURE;
         goto cleanup;
     }
 
@@ -381,8 +391,11 @@ static int do_conversion()
     printf("%d channels exported\n", i);
 
 cleanup:
-    if (o)
-        o->module->cleanup(o);
+    if (o) {
+        if (o->module)
+            o->module->cleanup(o);
+        free(o);
+    }
     if (pkt.payload)
         free(pkt.payload);
 
@@ -497,7 +510,7 @@ int main(int argc, char **argv)
     }
 
 #ifdef CONFIG_DEBUG
-    ll_print(list_head(channels));
+    //ll_print(list_head(channels));
 #endif
 
  cleanup:

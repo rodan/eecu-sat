@@ -19,7 +19,9 @@ static int init(struct sat_output *o)
 
 static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
 {
+    int ret = EXIT_SUCCESS;
     char *filename;
+    FILE *fp = NULL;
 
     filename = (char *)calloc(PATH_MAX, 1);
     if (filename == NULL) {
@@ -32,19 +34,34 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
         snprintf(filename, PATH_MAX - 1, "metadata");
         break;
     case SR_DF_ANALOG:
-        snprintf(filename, PATH_MAX, "analooog%d.bin", o->ch);
+        snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, o->ch);
+        printf("ch %d chunk%d\n", o->ch, o->chunk);
         break;
     default:
         goto cleanup;
     }
 
+    if (o->chunk == 1) {
+        fp = fopen(filename, "w");
+    } else {
+        fp = fopen(filename, "a");
+    }
+
     printf("fn: %s\n", filename);
+    if (fwrite(pkt->payload, 1, pkt->payload_size, fp) != pkt->payload_size) {
+        errMsg("during fwrite()");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
 
 cleanup:
     if (filename)
         free(filename);
 
-    return EXIT_SUCCESS;
+    if (fp)
+        fclose(fp);
+
+    return ret;
 }
 
 static int cleanup(struct sat_output *o)
