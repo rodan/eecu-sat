@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "config.h"
 #include "tlpi_hdr.h"
 #include "proj.h"
 #include "version.h"
@@ -22,8 +23,9 @@
 #include "output.h"
 #include "output_analog.h"
 #include "output_srzip.h"
+#include "transform.h"
 #include "calib.h"
-#include "config.h"
+#include "parsers.h"
 
 struct ch_data {
     struct ch_data *next;
@@ -40,6 +42,7 @@ static char *opt_default_input_prefix = "analog_[0-9]*.bin";
 static char *opt_input_prefix = NULL;
 static char *opt_output_file = NULL;
 static char *opt_output_format = NULL;
+static char *opt_transform_module = NULL;
 static char *opt_calibration_file = NULL;
 static char *opt_metadata_file = NULL;
 static bool opt_skip_header = false;
@@ -53,13 +56,15 @@ static void show_usage(void)
     fprintf(stdout, "\t\ta prefix that defines the input raw analog files. default is %s\n", opt_default_input_prefix);
     fprintf(stdout, "\t-o, --output=FILE\n");
     fprintf(stdout, "\t\toutput file to be generated\n");
-    fprintf(stdout, "\t-O, --output-format=FORMAT\n");
-    fprintf(stdout, "\t\tconvert data to FORMAT during output\n");
+    fprintf(stdout, "\t-O, --output-format OUTPUT\n");
+    fprintf(stdout, "\t\toutput data format to use, see -L for list\n");
     fprintf(stdout, "\t-s, --skip\n");
     fprintf(stdout, "\t\tskips the first 0x30 bytes (saleae header)\n");
+    fprintf(stdout, "\t-T, --transform-module TRANSFORM\n");
+    fprintf(stdout, "\t\tprocess data via a function, see -L for list\n");
     fprintf(stdout, "\t-c, --calibration\n");
     fprintf(stdout, "\t\tget per-channel slopes and offsets to be used for 3 point calibration\n");
-    fprintf(stdout, "\t--initcal");
+    fprintf(stdout, "\t--initcal\n");
     fprintf(stdout, "\t-m, --metadata\n");
     fprintf(stdout, "\t\tuse custom metadata file\n");
     fprintf(stdout, "\t-l, --list\n");
@@ -75,16 +80,20 @@ static void show_version(void)
 
 static void show_capabilities(void)
 {
-    const struct sat_output_module **omod;
+    const struct sat_output_module **outputs;
+    const struct sat_transform_module **transforms;
+    int i;
 
-    omod = sat_output_list();
-    if (*omod == NULL)
-        return;
+    printf("Supported output formats:\n");
+    outputs = sat_output_list();
+    for (i = 0; outputs[i]; i++) {
+        printf("  %-20s %s\n", sat_output_id_get(outputs[i]), sat_output_description_get(outputs[i]));
+    }
 
-    printf("Supported ouput formats:\n");
-    while (*omod) {
-        printf("  %s \t\t%s\n", sat_output_id_get(*omod), sat_output_description_get(*omod));
-        *omod++;
+    printf("Supported transform modules:\n");
+    transforms = sat_transform_list();
+    for (i = 0; transforms[i]; i++) {
+        printf("  %-20s %s\n", sat_transform_id_get(transforms[i]), sat_transform_description_get(transforms[i]));
     }
 
 }
@@ -99,6 +108,7 @@ static int parse_options(int argc, char **argv)
             {"input", 1, 0, 'i'},
             {"output", 1, 0, 'o'},
             {"output-format", 1, 0, 'O'},
+            {"transform-module", 1, 0, 'T'},
             {"metadata", 1, 0, 'm'},
             {"skip", 0, 0, 's'},
             {"calibration", 1, 0, 'c'},
@@ -109,7 +119,7 @@ static int parse_options(int argc, char **argv)
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:O:c:xhLv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:o:O:c:T:xhLv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
@@ -122,6 +132,9 @@ static int parse_options(int argc, char **argv)
             break;
         case 'O':
             opt_output_format = optarg;
+            break;
+        case 'T':
+            opt_transform_module = optarg;
             break;
         case 'm':
             opt_metadata_file = optarg;
@@ -247,7 +260,7 @@ static int do_calibration()
         }
     }
 
-cleanup:
+ cleanup:
 
     return ret;
 }
@@ -290,7 +303,7 @@ static int do_calibration_init()
         }
     }
 
-cleanup:
+ cleanup:
 
     return ret;
 }
@@ -301,24 +314,40 @@ static int do_conversion()
     struct sat_output *o = NULL;
     ch_data_t *ch_data_ptr;
     ssize_t read_len;
-    int i,n;
+    int i, n;
     int fd;
-    struct sr_datafeed_packet pkt;
+    struct sr_datafeed_packet pkt = { 0 };
+    struct sr_datafeed_analog analog = { 0 };
+    struct sr_analog_encoding encoding = { 0 };
+	struct sr_analog_meaning meaning = { 0 };
+	struct sr_analog_spec spec = { 0 };
+    struct sat_generic_pkt gpkt = { 0 };
+
+    analog.encoding = &encoding;
+    analog.meaning = &meaning;
+    analog.spec = &spec;
 
     if (!opt_output_format) {
         fprintf(stderr, "output format not selected\n");
         return EXIT_FAILURE;
     }
 
-    o = (struct sat_output *) calloc(1, sizeof(struct sat_output));
+    o = (struct sat_output *)calloc(1, sizeof(struct sat_output));
     if (!o) {
         errMsg("during calloc");
         ret = EXIT_FAILURE;
         goto cleanup;
     }
 
-    pkt.payload = (uint8_t *) calloc(CHUNK_SIZE, 1);
-    if (!pkt.payload) {
+    analog.data = (uint8_t *) calloc(CHUNK_SIZE, 1);
+    if (!analog.data) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    gpkt.payload = (uint8_t *) calloc(CHUNK_SIZE, 1);
+    if (!gpkt.payload) {
         errMsg("during calloc");
         ret = EXIT_FAILURE;
         goto cleanup;
@@ -338,6 +367,7 @@ static int do_conversion()
 
     ch_data_ptr = list_head(channels);
     i = 0;
+    pkt.payload = &analog;
 
     while (NULL != ch_data_ptr) {
         i++;
@@ -357,11 +387,11 @@ static int do_conversion()
         }
 
         n = 1;
-        while ((read_len = read(fd, pkt.payload, CHUNK_SIZE)) > 0) {
+        while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
             o->ch = i;
             o->chunk = n;
             pkt.type = SR_DF_ANALOG;
-            pkt.payload_size = read_len;
+            analog.num_samples = read_len / sizeof(float);
             o->module->receive(o, &pkt);
             n++;
         }
@@ -374,15 +404,16 @@ static int do_conversion()
         }
     }
 
+    pkt.payload = &gpkt;
     if (opt_metadata_file) {
         if ((fd = open(opt_metadata_file, O_RDONLY)) < 0) {
             errMsg("opening metadata file");
             ret = EXIT_FAILURE;
             goto cleanup;
         }
-        while ((read_len = read(fd, pkt.payload, CHUNK_SIZE)) > 0) {
+        while ((read_len = read(fd, gpkt.payload, CHUNK_SIZE)) > 0) {
             pkt.type = SR_DF_META;
-            pkt.payload_size = read_len;
+            gpkt.payload_sz = read_len;
             o->module->receive(o, &pkt);
         }
         close(fd);
@@ -390,16 +421,56 @@ static int do_conversion()
 
     printf("%d channels exported\n", i);
 
-cleanup:
+ cleanup:
     if (o) {
         if (o->module)
             o->module->cleanup(o);
         free(o);
     }
-    if (pkt.payload)
-        free(pkt.payload);
+    if (analog.data)
+        free(analog.data);
+    if (gpkt.payload)
+        free(gpkt.payload);
 
     return ret;
+}
+
+const struct sat_transform *setup_transform_module(void)
+{
+    const struct sat_transform_module *tmod;
+    const struct sr_option **options;
+    const struct sat_transform *t;
+    GHashTable *fmtargs, *fmtopts;
+    char *fmtspec;
+
+    fmtargs = parse_generic_arg(opt_transform_module, TRUE, NULL);
+    fmtspec = g_hash_table_lookup(fmtargs, "sigrok_key");
+    if (!fmtspec) {
+        fprintf(stderr, "Invalid transform module.\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("fmtspec %s\n", fmtspec);
+    if (!(tmod = sat_transform_find(fmtspec))) {
+        fprintf(stderr, "Unknown transform module '%s'.\n", fmtspec);
+        exit(EXIT_FAILURE);
+    }
+    g_hash_table_remove(fmtargs, "sigrok_key");
+    if ((options = sat_transform_options_get(tmod))) {
+        fmtopts = generic_arg_to_opt(options, fmtargs);
+        //(void)warn_unknown_keys(options, fmtargs, NULL);
+        sat_transform_options_free(options);
+    } else {
+        fmtopts = NULL;
+    }
+    t = sat_transform_new(tmod, fmtopts);
+
+    printf("transform set to %s\n", t->module->name);
+
+    if (fmtopts)
+        g_hash_table_destroy(fmtopts);
+    g_hash_table_destroy(fmtargs);
+
+    return t;
 }
 
 int main(int argc, char **argv)
@@ -417,6 +488,7 @@ int main(int argc, char **argv)
     ch_data_t *ch_data_ptr;
     ssize_t file_size_compare = -1;
     int ret = EXIT_SUCCESS;
+    const struct sat_transform *t;
 
     if (parse_options(argc, argv)) {
         return EXIT_FAILURE;
@@ -465,7 +537,8 @@ int main(int argc, char **argv)
                         ret = EXIT_FAILURE;
                         goto cleanup;
                     }
-                    snprintf(ch_data_ptr->output_file_name, file_name_len + 2, "%s/%s", opt_output_file, namelist[i]->d_name);
+                    snprintf(ch_data_ptr->output_file_name, file_name_len + 2, "%s/%s", opt_output_file,
+                             namelist[i]->d_name);
                 }
 
                 ch_data_ptr->id = channel_total;
@@ -495,6 +568,13 @@ int main(int argc, char **argv)
         free(namelist);
     }
 
+    if (opt_transform_module) {
+        if (!(t = setup_transform_module())) {
+            fprintf(stderr, "Failed to initialize transform module.\n");
+            return EXIT_FAILURE;
+        }
+    }
+
     if (!channel_total) {
         fprintf(stderr, "error: no valid input channels found\n");
         show_usage();
@@ -508,7 +588,6 @@ int main(int argc, char **argv)
     } else if (opt_action & ACTION_DO_CALIBRATION) {
         ret = do_calibration();
     }
-
 #ifdef CONFIG_DEBUG
     //ll_print(list_head(channels));
 #endif

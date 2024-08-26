@@ -19,7 +19,7 @@ a number of filters and buffers are used to protect the ADCs from transient spik
 
 more images of the prototype in action are available [here](https://photos.app.goo.gl/Gay5FS8gsCTZkYcH9)
 
-### Project components
+## Project components
 
 project directory structure
 
@@ -29,9 +29,24 @@ project directory structure
  * ./software/eecu-sat - program that processes the raw analog data exported by [Saleae's Logic](https://www.saleae.com/pages/downloads) and converts them into [sigrok](https://sigrok.org/wiki/File_format:Sigrok/v2) files
  * .doc/ktm\_1090\_wiring.ods - ktm 1090 ECU pinout based on wire harness specs present in the service manual
 
+## eecu-sat software
+
+One might note the likeness of eecpu-sat compared to [sigrok-cli](https://sigrok.org/wiki/Sigrok-cli) and that is understandable. I would have preferred to simply patch libsigrok and sigrok-cli to support the functionality that was needed for this project, however things did not go that smoothly. AFAICT libsigrok assumes that all input signals formats are interlaced, which makes sense from an acquisition system standpoint - samples are usually read by a single thread by switching channels in a loop. so CH1\_sample, CH2\_sample ... CH16\_sample, CH1\_sample, CH2\_sample ... in a row. however Logic exports multiple files containing raw analog signals - one per channel. Quoting a libsigrok source file,
+
+```
+Saleae Logic applications typically export one file per channel. The sigrok
+input modules exclusively handle an individual file, existing applications
+may not be prepared to handle a set of files, or handle "special" file types
+like directories. Some of them will even actively reject such input specs.
+Merging multiple exported channels into either another input file or a sigrok
+session is supposed to be done outside of this input module.
+```
+
+I needed to completely rewrite sigrok-cli and use some libsigrok functions to provide a way to handle Logic's output.
+
 ### Build requirements
 
-notable dependencies would be a Linux based OS, gcc, make and libzip. compilation is as simple as
+Notable dependencies would be a Linux based OS, gcc, make, libzip and the libsigrok headers. compilation is as simple as
 
 ```
 cd ./software/eecu-sat

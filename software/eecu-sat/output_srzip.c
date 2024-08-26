@@ -9,10 +9,9 @@
 #include "proj.h"
 #include "tlpi_hdr.h"
 #include "output.h"
-#include "output_srzip.h"
 
 struct out_context {
-    char *target_filename; // filename within the archive
+    char *target_filename;      // filename within the archive
 };
 
 static int init(struct sat_output *o)
@@ -59,17 +58,21 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
     struct zip *archive;
     struct zip_source *src;
     struct out_context *outc = o->priv;
+    const struct sr_datafeed_analog *analog;
+    const struct sat_generic_pkt *gpkt;
 
     if (!(archive = zip_open(o->filename, 0, NULL)))
         return EXIT_FAILURE;
 
-    src = zip_source_buffer(archive, pkt->payload, pkt->payload_size, 0);
-
     switch (pkt->type) {
     case SR_DF_META:
+        gpkt = pkt->payload;
+        src = zip_source_buffer(archive, gpkt->payload, gpkt->payload_sz, 0);
         snprintf(outc->target_filename, PATH_MAX - 1, "metadata");
         break;
     case SR_DF_ANALOG:
+        analog = pkt->payload;
+        src = zip_source_buffer(archive, analog->data, analog->num_samples * sizeof(float), 0);
         snprintf(outc->target_filename, PATH_MAX - 1, "analog-1-%d-%d", o->ch, o->chunk);
         break;
     default:

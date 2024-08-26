@@ -1,5 +1,5 @@
-#ifndef __EECPU_SAT_OUTPUT_H__
-#define __EECPU_SAT_OUTPUT_H__
+#ifndef __SAT_OUTPUT_H__
+#define __SAT_OUTPUT_H__
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -23,16 +23,6 @@ struct sat_output {
 
     uint16_t ch;
     uint16_t chunk;
-
-    /**
-     * CHUNK_SIZE buffer where received data comes in. allocation is controlled by the output module.
-     */
-    //uint8_t *buffer;
-
-    /**
-     * current size of data inside buffer - must be smaller than CHUNK_SIZE.
-     */
-    //ssize_t buffer_len;
 
 	/**
 	 * A generic pointer which can be used by the module to keep internal

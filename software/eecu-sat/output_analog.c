@@ -5,11 +5,9 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <linux/limits.h>
-#include <zip.h>
 #include "proj.h"
 #include "tlpi_hdr.h"
 #include "output.h"
-#include "output_srzip.h"
 
 static int init(struct sat_output *o)
 {
@@ -22,12 +20,16 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
     int ret = EXIT_SUCCESS;
     char *filename;
     FILE *fp = NULL;
+    ssize_t byte_cnt;
+    const struct sr_datafeed_analog *analog;
 
     filename = (char *)calloc(PATH_MAX, 1);
     if (filename == NULL) {
         errMsg("calloc error");
         return EXIT_FAILURE;
     }
+
+    analog = pkt->payload;
 
     switch (pkt->type) {
     case SR_DF_META:
@@ -48,13 +50,14 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
     }
 
     printf("fn: %s\n", filename);
-    if (fwrite(pkt->payload, 1, pkt->payload_size, fp) != pkt->payload_size) {
+    byte_cnt = analog->num_samples * sizeof(float);
+    if (fwrite(analog->data, 1, byte_cnt, fp) != byte_cnt) {
         errMsg("during fwrite()");
         ret = EXIT_FAILURE;
         goto cleanup;
     }
 
-cleanup:
+ cleanup:
     if (filename)
         free(filename);
 

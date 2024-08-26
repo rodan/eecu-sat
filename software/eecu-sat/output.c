@@ -6,9 +6,9 @@
 #include "output_srzip.h"
 
 static const struct sat_output_module *output_module_list[] = {
-	&output_analog,
-	&output_srzip,
-	NULL,
+    &output_analog,
+    &output_srzip,
+    NULL,
 };
 
 /**
@@ -18,7 +18,7 @@ static const struct sat_output_module *output_module_list[] = {
  */
 const struct sat_output_module **sat_output_list(void)
 {
-	return output_module_list;
+    return output_module_list;
 }
 
 /**
@@ -28,12 +28,12 @@ const struct sat_output_module **sat_output_list(void)
  */
 const char *sat_output_id_get(const struct sat_output_module *omod)
 {
-	if (!omod) {
-		fprintf(stderr, "Invalid output module NULL!\n");
-		return NULL;
-	}
+    if (!omod) {
+        fprintf(stderr, "Invalid output module NULL!\n");
+        return NULL;
+    }
 
-	return omod->id;
+    return omod->id;
 }
 
 /**
@@ -43,12 +43,12 @@ const char *sat_output_id_get(const struct sat_output_module *omod)
  */
 const char *sat_output_name_get(const struct sat_output_module *omod)
 {
-	if (!omod) {
-		fprintf(stderr, "Invalid output module NULL!\n");
-		return NULL;
-	}
+    if (!omod) {
+        fprintf(stderr, "Invalid output module NULL!\n");
+        return NULL;
+    }
 
-	return omod->name;
+    return omod->name;
 }
 
 /**
@@ -58,12 +58,12 @@ const char *sat_output_name_get(const struct sat_output_module *omod)
  */
 const char *sat_output_description_get(const struct sat_output_module *omod)
 {
-	if (!omod) {
-		fprintf(stderr, "Invalid output module NULL!\n");
-		return NULL;
-	}
+    if (!omod) {
+        fprintf(stderr, "Invalid output module NULL!\n");
+        return NULL;
+    }
 
-	return omod->desc;
+    return omod->desc;
 }
 
 /**
@@ -74,15 +74,14 @@ const char *sat_output_description_get(const struct sat_output_module *omod)
  *
  * @since 0.4.0
  */
-const char *const *sat_output_extensions_get(
-		const struct sat_output_module *omod)
+const char *const *sat_output_extensions_get(const struct sat_output_module *omod)
 {
-	if (!omod) {
-		fprintf(stderr, "Invalid output module NULL!\n");
-		return NULL;
-	}
+    if (!omod) {
+        fprintf(stderr, "Invalid output module NULL!\n");
+        return NULL;
+    }
 
-	return omod->exts;
+    return omod->exts;
 }
 
 /**
@@ -93,13 +92,12 @@ const char *const *sat_output_extensions_get(
  */
 const struct sat_output_module *sat_output_find(char *id)
 {
-	int i;
+    int i;
 
-	for (i = 0; output_module_list[i]; i++) {
-		if (!strcmp(output_module_list[i]->id, id))
-			return output_module_list[i];
-	}
+    for (i = 0; output_module_list[i]; i++) {
+        if (!strcmp(output_module_list[i]->id, id))
+            return output_module_list[i];
+    }
 
-	return NULL;
+    return NULL;
 }
-

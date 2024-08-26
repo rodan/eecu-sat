@@ -1,0 +1,6 @@
+#ifndef __TRANSFORM_CALIBRATE_LINEAR_3P_H__
+#define __TRANSFORM_CALIBRATE_LINEAR_3P_H__
+
+extern struct sat_transform_module transform_calibrate_linear_3p;
+
+#endif

@@ -16,7 +16,7 @@ CONTIKI_OBJ  = $(patsubst ${CONTIKI_DIR}/%.c,build/lib/contiki/%.o,${CONTIKI_SRC
 LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ) $(CONTIKI_OBJ)
 
 INCLUDES  := -I ./ -I $(TLPI_DIR) -I $(INIH_DIR) -I $(CONTIKI_DIR) 
-LOCAL_SRC_C := main.c output.c output_analog.c output_srzip.c calib.c
+LOCAL_SRC_C := main.c parsers.c output.c output_analog.c output_srzip.c calib.c transform.c transform_calibrate_linear_3p.c
 SRC        = $(LOCAL_SRC_C) $(TLPI_SRC) $(INIH_SRC) $(CONTIKI_SRC)
 EXOUTPUT   = $(PROJ)
 
@@ -28,8 +28,8 @@ LDFLAGS_REL	 += -Wl,-s
 CFLAGS_DBG	 += -O1 -ggdb -DNDEBUG # -pg
 LDFLAGS_DBG	 += # -pg
 
-MANDATORY_CFLAGS=-fPIC -pedantic -Wall -Wextra -Wno-sign-compare -Wa,-ahl=$(@:.o=.s) `pkgconf --cflags libzip`
-MANDATORY_LDFLAGS=`pkgconf --libs libzip`
+MANDATORY_CFLAGS=-fPIC -pedantic -Wall -Wextra -Wno-sign-compare -Wa,-ahl=$(@:.o=.s) `pkgconf --cflags libzip` `pkgconf --cflags glib-2.0`
+MANDATORY_LDFLAGS=`pkgconf --libs libzip` `pkgconf --libs glib-2.0`
 
 DEBUG := $(shell grep "^#define CONFIG_DEBUG" config.h)
 ifeq ($(DEBUG),)
