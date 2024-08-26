@@ -49,6 +49,8 @@ static bool opt_skip_header = false;
 static uint32_t opt_action = ACTION_DO_CONVERT;
 LIST(channels);
 
+const struct sat_transform *setup_transform_module(void);
+
 static void show_usage(void)
 {
     fprintf(stdout, "Usage: eecu-sat [-i PREFIX] [-o FILE]\n");
@@ -312,11 +314,13 @@ static int do_conversion()
 {
     int ret = EXIT_SUCCESS;
     struct sat_output *o = NULL;
+    struct sat_transform *t = NULL;
     ch_data_t *ch_data_ptr;
     ssize_t read_len;
     int i, n;
     int fd;
     struct sr_datafeed_packet pkt = { 0 };
+    struct sr_datafeed_packet *tpkt;
     struct sr_datafeed_analog analog = { 0 };
     struct sr_analog_encoding encoding = { 0 };
 	struct sr_analog_meaning meaning = { 0 };
@@ -337,6 +341,20 @@ static int do_conversion()
         errMsg("during calloc");
         ret = EXIT_FAILURE;
         goto cleanup;
+    }
+
+    t = (struct sat_transform *)calloc(1, sizeof(struct sat_transform));
+    if (!t) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    if (opt_transform_module) {
+        if (!(t = setup_transform_module())) {
+            fprintf(stderr, "Failed to initialize transform module.\n");
+            return EXIT_FAILURE;
+        }
     }
 
     analog.data = (uint8_t *) calloc(CHUNK_SIZE, 1);
@@ -388,14 +406,26 @@ static int do_conversion()
 
         n = 1;
         while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
+            t->ch = i;
             o->ch = i;
+            t->chunk = n;
             o->chunk = n;
+            if (n == 1) {
+                pkt.type = SR_DF_FRAME_BEGIN;
+                t->module->receive(t, &pkt, &tpkt);
+                o->module->receive(o, &pkt);
+            }
             pkt.type = SR_DF_ANALOG;
             analog.num_samples = read_len / sizeof(float);
-            o->module->receive(o, &pkt);
+            t->module->receive(t, &pkt, &tpkt);
+            o->module->receive(o, tpkt);
             n++;
         }
         close(fd);
+
+        pkt.type = SR_DF_FRAME_END;
+        t->module->receive(t, &pkt, &tpkt);
+        o->module->receive(o, &pkt);
 
         if (ch_data_ptr->next != NULL) {
             ch_data_ptr = ch_data_ptr->next;
@@ -427,6 +457,13 @@ static int do_conversion()
             o->module->cleanup(o);
         free(o);
     }
+
+    if (t) {
+        if (t->module)
+            t->module->cleanup(t);
+        g_free(t);
+    }
+
     if (analog.data)
         free(analog.data);
     if (gpkt.payload)
@@ -449,7 +486,6 @@ const struct sat_transform *setup_transform_module(void)
         fprintf(stderr, "Invalid transform module.\n");
         exit(EXIT_FAILURE);
     }
-    printf("fmtspec %s\n", fmtspec);
     if (!(tmod = sat_transform_find(fmtspec))) {
         fprintf(stderr, "Unknown transform module '%s'.\n", fmtspec);
         exit(EXIT_FAILURE);
@@ -488,7 +524,7 @@ int main(int argc, char **argv)
     ch_data_t *ch_data_ptr;
     ssize_t file_size_compare = -1;
     int ret = EXIT_SUCCESS;
-    const struct sat_transform *t;
+    //const struct sat_transform *t;
 
     if (parse_options(argc, argv)) {
         return EXIT_FAILURE;
@@ -568,12 +604,6 @@ int main(int argc, char **argv)
         free(namelist);
     }
 
-    if (opt_transform_module) {
-        if (!(t = setup_transform_module())) {
-            fprintf(stderr, "Failed to initialize transform module.\n");
-            return EXIT_FAILURE;
-        }
-    }
 
     if (!channel_total) {
         fprintf(stderr, "error: no valid input channels found\n");

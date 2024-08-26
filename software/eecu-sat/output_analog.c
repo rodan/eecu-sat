@@ -37,7 +37,7 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
         break;
     case SR_DF_ANALOG:
         snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, o->ch);
-        printf("ch %d chunk%d\n", o->ch, o->chunk);
+        //printf("ch %d chunk%d\n", o->ch, o->chunk);
         break;
     default:
         goto cleanup;
@@ -49,7 +49,7 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
         fp = fopen(filename, "a");
     }
 
-    printf("fn: %s\n", filename);
+    //printf("fn: %s\n", filename);
     byte_cnt = analog->num_samples * sizeof(float);
     if (fwrite(analog->data, 1, byte_cnt, fp) != byte_cnt) {
         errMsg("during fwrite()");

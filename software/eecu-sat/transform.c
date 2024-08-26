@@ -159,12 +159,9 @@ const struct sat_transform *sat_transform_new(const struct sat_transform_module 
     if (tmod->options) {
         mod_opts = tmod->options();
         for (i = 0; mod_opts[i].id; i++) {
-            printf("i is %d\n", i);
             if (options && g_hash_table_lookup_extended(options, mod_opts[i].id, &key, &value)) {
                 /* Pass option along. */
-                printf("gvt\n");
                 gvt = g_variant_get_type(mod_opts[i].def);
-                printf("gvt\n");
                 if (!g_variant_is_of_type(value, gvt)) {
                     fprintf(stderr, "Invalid type for '%s' option.\n", (char *)key);
                     g_free(t);

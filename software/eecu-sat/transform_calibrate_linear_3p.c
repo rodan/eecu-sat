@@ -7,10 +7,13 @@
 #include <linux/limits.h>
 #include "proj.h"
 #include "tlpi_hdr.h"
+#include "calib.h"
 #include "transform.h"
 
 struct context {
-    char *calib;
+    gchar *calib_file;
+    calib_globals_t globals;
+    calib_channel_t channel;
 };
 
 static int init(struct sat_transform *t, GHashTable *options)
@@ -23,32 +26,58 @@ static int init(struct sat_transform *t, GHashTable *options)
     t->priv = ctx = g_malloc0(sizeof(struct context));
 
     /* Options */
-    ctx->calib = g_strdup(g_variant_get_string(
-        g_hash_table_lookup(options, "calib"), NULL));
-    printf("calib is %s\n", ctx->calib);
+    ctx->calib_file = g_strdup(g_variant_get_string(g_hash_table_lookup(options, "calib_file"), NULL));
+    
+    if ((calib_read_params_from_file(ctx->calib_file, &ctx->globals, CALIB_INI_GLOBALS)) != EXIT_SUCCESS) {
+        fprintf(stderr, "error during calib_read_params_from_file()\n");
+        return SR_ERR_ARG;
+    }
 
     return SR_OK;
 }
 
 static int receive(const struct sat_transform *t,
-        struct sr_datafeed_packet *packet_in,
-        struct sr_datafeed_packet **packet_out)
+                   struct sr_datafeed_packet *packet_in, struct sr_datafeed_packet **packet_out)
 {
     struct context *ctx;
-    //const struct sr_datafeed_analog *analog;
+    const struct sr_datafeed_analog *analog;
+    calib_globals_t *g;
+    calib_channel_t *c;
+    ssize_t i;
+    float cur;
+    float *samples;
 
     if (!t || !packet_in || !packet_out)
         return SR_ERR_ARG;
     ctx = t->priv;
+    g = &ctx->globals;
+    c = &ctx->channel;
 
     switch (packet_in->type) {
+    case SR_DF_FRAME_BEGIN:
+        ctx->channel.id = t->ch;
+        if ((calib_read_params_from_file(ctx->calib_file, &ctx->channel, CALIB_INI_CHANNEL)) != EXIT_SUCCESS) {
+            fprintf(stderr, "error during calib_read_params_from_file()\n");
+            return SR_ERR_ARG;
+        }
+        break;
     case SR_DF_ANALOG:
-        //analog = packet_in->payload;
-        //analog->encoding->scale.p *= ctx->factor.p;
-        //analog->encoding->scale.q *= ctx->factor.q;
+        analog = packet_in->payload;
+        samples = analog->data;
+        for (i=0; i<analog->num_samples; i++) {
+            cur = samples[i];
+            if (cur < g->r_oob_floor) {
+                samples[i] = g->r_oob_floor;
+            } else if (cur > g->r_oob_ceil) {
+                samples[i] = g->r_oob_ceil;
+            } else if (cur <= c->midpoint) {
+                samples[i] = cur * c->slope_0 + c->offset_0;
+            } else if (cur > c->midpoint) {
+                samples[i] = cur * c->slope_1 + c->offset_1;
+            }
+        }
         break;
     default:
-        //sat_spew("Unsupported packet type %d, ignoring.", packet_in->type);
         break;
     }
 
@@ -64,8 +93,11 @@ static int cleanup(struct sat_transform *t)
 
     if (!t)
         return SR_ERR_ARG;
+
     ctx = t->priv;
 
+    if (ctx->calib_file)
+        g_free(ctx->calib_file);
     g_free(ctx);
     t->priv = NULL;
 
@@ -73,14 +105,12 @@ static int cleanup(struct sat_transform *t)
 }
 
 static struct sr_option options[] = {
-    { "calib", "Calibration file", "ini file containing two slope and offset pairs for each channel", NULL, NULL },
+    {"calib_file", "Calibration file", "ini file containing two slope and offset pairs for each channel", NULL, NULL},
     ALL_ZERO
 };
 
 static const struct sr_option *get_options(void)
 {
-    GSList *l = NULL;
-
     if (!options[0].def) {
         options[0].def = g_variant_ref_sink(g_variant_new_string(""));
     }
@@ -97,4 +127,3 @@ struct sat_transform_module transform_calibrate_linear_3p = {
     .receive = receive,
     .cleanup = cleanup,
 };
-

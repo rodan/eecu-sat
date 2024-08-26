@@ -1,7 +1,7 @@
 #ifndef SIGROK_GLUE_H
 #define SIGROK_GLUE_H
 
-//#include "libsigrok_l.h"
+/* we use some of the libsigrok structures and macros*/
 #include <libsigrok/libsigrok.h>
 
 #define            CHUNK_SIZE  (8 * 1024 * 1024)
