@@ -28,8 +28,6 @@ struct cmdline_opt {
     char *output_file;
     char *output_format;
     char *transform_module;
-    char *calibration_file;
-    char *metadata_file;
     bool skip_header;
     uint32_t action;
 };

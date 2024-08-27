@@ -46,11 +46,9 @@ static void show_usage(void)
     fprintf(stdout, "\t\tskips the first 0x30 bytes (saleae header)\n");
     fprintf(stdout, "\t-T, --transform-module TRANSFORM\n");
     fprintf(stdout, "\t\tprocess data via a function, see -L for list\n");
-    fprintf(stdout, "\t-c, --calibration\n");
-    fprintf(stdout, "\t\tget per-channel slopes and offsets to be used for 3 point calibration\n");
     fprintf(stdout, "\t--initcal\n");
-    fprintf(stdout, "\t-l, --list\n");
-    fprintf(stdout, "\t\tlist known output formats\n");
+    fprintf(stdout, "\t-L, --list\n");
+    fprintf(stdout, "\t\tlist known output formats and transform modules\n");
     fprintf(stdout, "\t-h, --help\n");
     fprintf(stdout, "\t-v, --version\n");
 }
@@ -92,7 +90,6 @@ static int parse_options(int argc, char **argv)
             {"output-format", 1, 0, 'O'},
             {"transform-module", 1, 0, 'T'},
             {"skip", 0, 0, 's'},
-            {"calibration", 1, 0, 'c'},
             {"initcal", 0, 0, 'x'},
             {"list", 0, 0, 'L'},
             {"help", 0, 0, 'h'},
@@ -100,7 +97,7 @@ static int parse_options(int argc, char **argv)
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:O:c:T:xhLv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:o:O:T:xhLv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
@@ -116,11 +113,6 @@ static int parse_options(int argc, char **argv)
             break;
         case 'T':
             opt.transform_module = optarg;
-            break;
-        case 'c':
-            opt.calibration_file = optarg;
-            opt.action |= ACTION_DO_CALIBRATION;
-            opt.action &= ~ACTION_DO_CONVERT;
             break;
         case 'x':
             opt.action |= ACTION_DO_CALIB_INIT;
@@ -296,20 +288,6 @@ static int run_session(void)
         goto cleanup;
     }
 
-#if 0
-    o->module = sat_output_find(opt.output_format);
-    if (o->module == NULL) {
-        fprintf(stderr, "invalid output module '%s'\n", opt.output_format);
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-    o->filename = opt.output_file;
-    if (o->module->init(o) == EXIT_FAILURE) {
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-#endif
-
     ch_data_ptr = list_head(channels);
     i = 0;
     pkt.payload = &analog;
@@ -376,7 +354,7 @@ static int run_session(void)
     if (o) {
         if (o->module)
             o->module->cleanup(o);
-        free(o);
+        g_free(o);
     }
 
     if (t) {
