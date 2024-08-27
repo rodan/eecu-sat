@@ -141,7 +141,7 @@ void sat_transform_options_free(const struct sr_option **options)
  *
  * @since 0.4.0
  */
-const struct sat_transform *sat_transform_new(const struct sat_transform_module *tmod, GHashTable *options)     //, const struct sr_dev_inst *sdi)
+const struct sat_transform *sat_transform_new(const struct sat_transform_module *tmod, GHashTable *options, const struct sr_dev_inst *sdi)
 {
     struct sat_transform *t;
     const struct sr_option *mod_opts;
@@ -153,7 +153,7 @@ const struct sat_transform *sat_transform_new(const struct sat_transform_module 
 
     t = g_malloc(sizeof(struct sat_transform));
     t->module = tmod;
-    //t->sdi = sdi;
+    t->sdi = sdi;
 
     new_opts = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_variant_unref);
     if (tmod->options) {

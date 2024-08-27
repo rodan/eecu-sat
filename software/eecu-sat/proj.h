@@ -47,4 +47,9 @@ struct sat_generic_pkt {
     void *payload;
 };
 
+struct dev_frame {
+    uint16_t ch;
+    uint16_t chunk;
+};
+
 #endif

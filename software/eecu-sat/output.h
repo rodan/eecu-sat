@@ -14,7 +14,7 @@ struct sat_output {
 	 * The device for which this output module is creating output. This
 	 * can be used by the module to find out channel names and numbers.
 	 */
-    //const struct sr_dev_inst *sdi;
+    const struct sr_dev_inst *sdi;
 
     /**
 	 * The name of the (container) file that the data should be written to.
@@ -133,7 +133,7 @@ const struct sat_output_module *sat_output_find(char *id);
 const struct sr_option **sat_output_options_get(const struct sat_output_module *omod);
 void sat_output_options_free(const struct sr_option **options);
 const struct sat_output *sat_output_new(const struct sat_output_module *omod,
-                                      GHashTable *options, const char *filename);
+                                      GHashTable *options, const struct sr_dev_inst *sdi, const char *filename);
 int sat_output_send(const struct sat_output *o, const struct sr_datafeed_packet *packet);
 int sat_output_free(const struct sat_output *o);
 

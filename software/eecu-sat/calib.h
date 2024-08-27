@@ -62,7 +62,6 @@ struct calib_context {
 typedef struct calib_context calib_context_t;
 
 int calib_read_params_from_file(char *file_name, void *ctx, uint8_t flags);
-//int calib_init_from_data_file(char *data_file_name, char *ini_file_name, calib_context_t *ctx);
 int calib_init_from_buffer(float *data, ssize_t num_samples, calib_context_t *ctx);
 
 #endif

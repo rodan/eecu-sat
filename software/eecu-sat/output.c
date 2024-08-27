@@ -181,7 +181,7 @@ void sat_output_options_free(const struct sr_option **options)
  *
  */
 const struct sat_output *sat_output_new(const struct sat_output_module *omod,
-                                      GHashTable *options, const char *filename)
+       GHashTable *options, const struct sr_dev_inst *sdi, const char *filename)
 {
     struct sat_output *op;
     const struct sr_option *mod_opts;
@@ -193,6 +193,7 @@ const struct sat_output *sat_output_new(const struct sat_output_module *omod,
 
     op = g_malloc(sizeof(struct sat_output));
     op->module = omod;
+    op->sdi = sdi;
     op->filename = g_strdup(filename);
 
     new_opts = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify) g_variant_unref);

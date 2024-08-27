@@ -195,52 +195,7 @@ static void ll_free_all(ch_data_t **head)
     *head = NULL;
 }
 
-#if 0
-static int do_calibration_init()
-{
-    int ret = EXIT_SUCCESS;
-    calib_context_t *ctx = NULL;
-    calib_globals_t globals;
-    ch_data_t *ch_data_ptr;
-
-    if ((calib_read_params_from_file(opt_calibration_file, &globals, CALIB_INI_GLOBALS)) != EXIT_SUCCESS) {
-        fprintf(stderr, "error during calib_read_params_from_file()\n");
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-
-    ch_data_ptr = list_head(channels);
-
-    while (NULL != ch_data_ptr) {
-        ctx = (calib_context_t *) calloc(1, sizeof(struct calib_context));
-        if (!ctx) {
-            errMsg("during calloc");
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-        ctx->globals = &globals;
-        ctx->channel_data.id = ch_data_ptr->id;
-        ctx->channel_data.calibration_type = CALIB_TYPE_3_POINT;
-        if ((calib_init_from_data_file(ch_data_ptr->input_file_name, opt_calibration_file, ctx)) != EXIT_SUCCESS) {
-            fprintf(stderr, "error during calib_init_from_data_file()\n");
-        }
-
-        free(ctx);
-
-        if (ch_data_ptr->next != NULL) {
-            ch_data_ptr = ch_data_ptr->next;
-        } else {
-            break;
-        }
-    }
-
- cleanup:
-
-    return ret;
-}
-#endif
-
-static int run_session(void)
+static int run_session(const struct sr_dev_inst *sdi)
 {
     int ret = EXIT_SUCCESS;
     struct sat_output *o = NULL;
@@ -268,7 +223,7 @@ static int run_session(void)
     }
 
     if (opt.output_file) {
-        if (!(o = setup_output_format(opt.output_file, opt.output_format))) {
+        if (!(o = setup_output_format(sdi, opt.output_file, opt.output_format))) {
             fprintf(stderr, "Failed to initialize transform module.\n");
             return EXIT_FAILURE;
         }
@@ -278,7 +233,7 @@ static int run_session(void)
     }
 
     if (opt.transform_module) {
-        if (!(t = setup_transform_module(opt.transform_module))) {
+        if (!(t = setup_transform_module(sdi, opt.transform_module))) {
             fprintf(stderr, "Failed to initialize transform module.\n");
             return EXIT_FAILURE;
         }
@@ -404,6 +359,7 @@ int main(int argc, char **argv)
     ch_data_t *ch_data_ptr;
     ssize_t file_size_compare = -1;
     int ret = EXIT_SUCCESS;
+    struct sr_dev_inst sdi;
 
     if (parse_options(argc, argv)) {
         return EXIT_FAILURE;
@@ -487,7 +443,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    ret = run_session();
+    ret = run_session(&sdi);
 
 #ifdef CONFIG_DEBUG
     //ll_print(list_head(channels));

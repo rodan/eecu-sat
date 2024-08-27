@@ -9,7 +9,7 @@
 #include "output.h"
 #include "transform.h"
 
-const struct sat_output *setup_output_format(char *opt_output_file, char *opt_output_format)
+const struct sat_output *setup_output_format(const struct sr_dev_inst *sdi, char *opt_output_file, char *opt_output_format)
 {
 	const struct sat_output_module *omod;
 	const struct sr_option **options;
@@ -40,7 +40,7 @@ const struct sat_output *setup_output_format(char *opt_output_file, char *opt_ou
 	} else {
 		fmtopts = NULL;
 	}
-	o = sat_output_new(omod, fmtopts, opt_output_file);
+	o = sat_output_new(omod, fmtopts, sdi, opt_output_file);
 
 #if 0
 	if (opt_output_file) {
@@ -67,7 +67,7 @@ const struct sat_output *setup_output_format(char *opt_output_file, char *opt_ou
 	return o;
 }
 
-const struct sat_transform *setup_transform_module(char *opt_transform_module)
+const struct sat_transform *setup_transform_module(const struct sr_dev_inst *sdi, char *opt_transform_module)
 {
     const struct sat_transform_module *tmod;
     const struct sr_option **options;
@@ -93,7 +93,7 @@ const struct sat_transform *setup_transform_module(char *opt_transform_module)
     } else {
         fmtopts = NULL;
     }
-    t = sat_transform_new(tmod, fmtopts);
+    t = sat_transform_new(tmod, fmtopts, sdi);
 
     if (fmtopts)
         g_hash_table_destroy(fmtopts);

@@ -14,7 +14,7 @@ struct sat_transform {
      * The device for which this transform module is used. This
      * can be used by the module to find out channel names and numbers.
      */
-    //const struct sat_dev_inst *sdi;
+    const struct sr_dev_inst *sdi;
 
     uint16_t ch;
     uint16_t chunk;
@@ -102,7 +102,7 @@ const struct sat_transform_module *sat_transform_find(const char *id);
 const struct sr_option **sat_transform_options_get(const struct sat_transform_module *tmod);
 void sat_transform_options_free(const struct sr_option **options);
 const struct sat_transform *sat_transform_new(const struct sat_transform_module *tmod,
-		GHashTable *options);
+		GHashTable *options, const struct sr_dev_inst *sdi);
 int sat_transform_free(const struct sat_transform *t);
 
 #endif
