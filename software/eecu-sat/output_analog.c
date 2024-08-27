@@ -9,13 +9,14 @@
 #include "tlpi_hdr.h"
 #include "output.h"
 
-static int init(struct sat_output *o)
+static int init(struct sat_output *o, GHashTable *options)
 {
     UNUSED(o);
+    UNUSED(options);
     return EXIT_SUCCESS;
 }
 
-static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
+static int receive(const struct sat_output *o, const struct sr_datafeed_packet *pkt)
 {
     int ret = EXIT_SUCCESS;
     char *filename;

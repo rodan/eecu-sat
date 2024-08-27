@@ -12,17 +12,23 @@
 
 struct out_context {
     char *target_filename;      // filename within the archive
+    char *metadata_file;
 };
 
-static int init(struct sat_output *o)
+static int init(struct sat_output *o, GHashTable *options)
 {
     struct zip_source *src;
+    struct zip_source *metadata = NULL;
     struct zip *archive;
     struct out_context *outc;
+
     unlink(o->filename);
 
     outc = (struct out_context *)calloc(1, sizeof(struct out_context));
     o->priv = outc;
+
+    /* Options */
+    outc->metadata_file = g_strdup(g_variant_get_string(g_hash_table_lookup(options, "metadata_file"), NULL));
 
     outc->target_filename = (char *)calloc(PATH_MAX, 1);
     if (outc->target_filename == NULL) {
@@ -44,6 +50,20 @@ static int init(struct sat_output *o)
         return EXIT_FAILURE;
     }
 
+    if (outc->metadata_file && (outc->metadata_file[0] != 0)) {
+        metadata = zip_source_file(archive, outc->metadata_file, 0, -1);
+        if (!metadata) {
+            fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+            return EXIT_FAILURE;
+        }
+        if (zip_file_add(archive, "metadata", metadata, ZIP_FL_ENC_UTF_8) < 0) {
+            fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+            zip_source_free(metadata);
+            zip_discard(archive);
+            return EXIT_FAILURE;
+        }
+    }
+
     if (zip_close(archive) < 0) {
         fprintf(stderr, "Error saving zipfile: %s", zip_strerror(archive));
         zip_discard(archive);
@@ -53,7 +73,7 @@ static int init(struct sat_output *o)
     return EXIT_SUCCESS;
 }
 
-static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
+static int receive(const struct sat_output *o, const struct sr_datafeed_packet *pkt)
 {
     struct zip *archive;
     struct zip_source *src;
@@ -96,6 +116,20 @@ static int receive(struct sat_output *o, struct sr_datafeed_packet *pkt)
     return EXIT_SUCCESS;
 }
 
+static struct sr_option options[] = {
+    {"metadata_file", "metadata file", "custom metadata file to include in the output srzip archive", NULL, NULL},
+	ALL_ZERO
+};
+
+static const struct sr_option *get_options(void)
+{
+    if (!options[0].def) {
+        options[0].def = g_variant_ref_sink(g_variant_new_string(""));
+    }
+
+	return options;
+}
+
 static int cleanup(struct sat_output *o)
 {
     struct out_context *outc;
@@ -107,6 +141,8 @@ static int cleanup(struct sat_output *o)
 
     if (outc->target_filename)
         free(outc->target_filename);
+    if (outc->metadata_file)
+        free(outc->metadata_file);
 
     if (o->priv)
         free(o->priv);
@@ -119,6 +155,8 @@ struct sat_output_module output_srzip = {
     .name = "srzip",
     .desc = "sigrok session file format data",
     .exts = (const char *[]) {"sr", NULL},
+    .flags = SR_OUTPUT_INTERNAL_IO_HANDLING,
+    .options = get_options,
     .init = init,
     .receive = receive,
     .cleanup = cleanup,
