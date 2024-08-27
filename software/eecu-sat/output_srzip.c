@@ -137,15 +137,15 @@ static int cleanup(struct sat_output *o)
     if (o == NULL)
         return EXIT_FAILURE;
 
-    outc = o->priv;
+    if (o->priv) {
+        outc = o->priv;
+        if (outc->target_filename)
+            free(outc->target_filename);
+        if (outc->metadata_file)
+            free(outc->metadata_file);
 
-    if (outc->target_filename)
-        free(outc->target_filename);
-    if (outc->metadata_file)
-        free(outc->metadata_file);
-
-    if (o->priv)
         free(o->priv);
+    }
 
     return EXIT_SUCCESS;
 }
