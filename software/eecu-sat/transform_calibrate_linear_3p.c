@@ -46,10 +46,12 @@ static int receive(const struct sat_transform *t,
     ssize_t i;
     float cur;
     float *samples;
-    struct dev_frame *frame = t->sdi->priv;
+    struct dev_frame *frame;
 
     if (!t || !packet_in || !packet_out)
         return SR_ERR_ARG;
+
+    frame = t->sdi->priv;
     ctx = t->priv;
     g = &ctx->globals;
     c = &ctx->channel;
@@ -95,12 +97,13 @@ static int cleanup(struct sat_transform *t)
     if (!t)
         return SR_ERR_ARG;
 
-    ctx = t->priv;
-
-    if (ctx->calib_file)
-        g_free(ctx->calib_file);
-    g_free(ctx);
-    t->priv = NULL;
+    if (t->priv) {
+        ctx = t->priv;
+        if (ctx->calib_file)
+            g_free(ctx->calib_file);
+        g_free(ctx);
+        t->priv = NULL;
+    }
 
     return SR_OK;
 }

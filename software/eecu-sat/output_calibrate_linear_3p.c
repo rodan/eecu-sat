@@ -148,13 +148,13 @@ static int cleanup(struct sat_output *o)
     if (o == NULL)
         return EXIT_FAILURE;
 
-    outc = o->priv;
-
-    if (outc->calib_file)
-        free(outc->calib_file);
-
-    if (o->priv)
-        free(o->priv);
+    if (o->priv) {
+        outc = o->priv;
+        if (outc->calib_file)
+            g_free(outc->calib_file);
+        free(outc);
+        o->priv = NULL;
+    }
 
     return EXIT_SUCCESS;
 }
