@@ -33,6 +33,10 @@ static char *opt_default_input_prefix = "analog_[0-9]*.bin";
 struct cmdline_opt opt = { 0 };
 LIST(channels);
 
+// 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
+static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
+#define SALEAE_HEADER_SZ 0x30
+
 static void show_usage(void)
 {
     fprintf(stdout, "Usage: eecu-sat [-i PREFIX] [-o FILE]\n");
@@ -140,6 +144,13 @@ static int parse_options(int argc, char **argv)
     }
 
     return EXIT_SUCCESS;
+}
+
+bool saleae_magic_is_present(uint8_t *data)
+{
+    if (memcmp(data, saleae_magic, 8) == 0)
+        return true;
+    return false;
 }
 
 #ifdef CONFIG_DEBUG
@@ -300,8 +311,23 @@ static int run_session(void)
             ret = EXIT_FAILURE;
             goto cleanup;
         }
-        if (opt.skip_header) {
-            if (lseek(fd, 0x30, SEEK_SET) < 0) {
+
+        // skip saleae header if present
+        if (read(fd, analog.data, 8) != 8) {
+            errMsg("during read()");
+            close(fd);
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+        if (saleae_magic_is_present(analog.data)) {
+            if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
+                errMsg("during lseek()");
+                close(fd);
+                ret = EXIT_FAILURE;
+                goto cleanup;
+            }
+        } else {
+            if (lseek(fd, 0x0, SEEK_SET) < 0) {
                 errMsg("during lseek()");
                 close(fd);
                 ret = EXIT_FAILURE;
@@ -464,7 +490,6 @@ int main(int argc, char **argv)
         }
         free(namelist);
     }
-
 
     if (!channel_total) {
         fprintf(stderr, "error: no valid input channels found\n");

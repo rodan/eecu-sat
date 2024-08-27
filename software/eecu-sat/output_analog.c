@@ -68,6 +68,20 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     return ret;
 }
 
+static struct sr_option options[] = {
+    {"first_channel", "First channel", "identifier for the first channel", NULL, NULL},
+    ALL_ZERO
+};
+
+static const struct sr_option *get_options(void)
+{
+    if (!options[0].def) {
+        options[0].def = g_variant_ref_sink(g_variant_new_string(""));
+    }
+
+    return options;
+}
+
 static int cleanup(struct sat_output *o)
 {
     UNUSED(o);
@@ -79,6 +93,8 @@ struct sat_output_module output_analog = {
     .name = "analog",
     .desc = "one channel per file raw analog",
     .exts = (const char *[]) {"sr", NULL},
+    .flags = SR_OUTPUT_INTERNAL_IO_HANDLING,
+    .options = get_options,
     .init = init,
     .receive = receive,
     .cleanup = cleanup,

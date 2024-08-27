@@ -16,7 +16,7 @@ CONTIKI_OBJ  = $(patsubst ${CONTIKI_DIR}/%.c,build/lib/contiki/%.o,${CONTIKI_SRC
 LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ) $(CONTIKI_OBJ)
 
 INCLUDES  := -I ./ -I $(TLPI_DIR) -I $(INIH_DIR) -I $(CONTIKI_DIR) 
-LOCAL_SRC_C := main.c session.c parsers.c output.c output_analog.c output_srzip.c calib.c transform.c transform_calibrate_linear_3p.c
+LOCAL_SRC_C := main.c session.c parsers.c output.c output_analog.c output_srzip.c output_calibrate_linear_3p.c calib.c transform.c transform_calibrate_linear_3p.c
 SRC        = $(LOCAL_SRC_C) $(TLPI_SRC) $(INIH_SRC) $(CONTIKI_SRC)
 EXOUTPUT   = $(PROJ)
 

@@ -4,10 +4,12 @@
 #include "output.h"
 #include "output_analog.h"
 #include "output_srzip.h"
+#include "output_calibrate_linear_3p.h"
 
 static const struct sat_output_module *output_module_list[] = {
     &output_analog,
     &output_srzip,
+    &output_calibrate_linear_3p,
     NULL,
 };
 

@@ -1,0 +1,6 @@
+#ifndef __OUTPUT_CALIBRATE_LINEAR_3P_H__
+#define __OUTPUT_CALIBRATE_LINEAR_3P_H__
+
+extern struct sat_output_module output_calibrate_linear_3p;
+
+#endif
