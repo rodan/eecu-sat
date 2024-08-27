@@ -247,7 +247,7 @@ static int run_session(void)
     struct sat_transform *t = NULL;
     ch_data_t *ch_data_ptr;
     ssize_t read_len;
-    int i, n;
+    int i, j;
     int fd;
     struct sr_datafeed_packet pkt = { 0 };
     struct sr_datafeed_packet *tpkt;
@@ -335,15 +335,15 @@ static int run_session(void)
             }
         }
 
-        n = 1;
+        j = 1;
         while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
             o->ch = i;
-            o->chunk = n;
+            o->chunk = j;
             if (transform_initialized) {
                 t->ch = i;
-                t->chunk = n;
+                t->chunk = j;
             }
-            if (n == 1) {
+            if (j == 1) {
                 pkt.type = SR_DF_FRAME_BEGIN;
                 if (transform_initialized)
                     t->module->receive(t, &pkt, &tpkt);
@@ -357,7 +357,7 @@ static int run_session(void)
             } else {
                 o->module->receive(o, &pkt);
             }
-            n++;
+            j++;
         }
         close(fd);
 
@@ -374,21 +374,13 @@ static int run_session(void)
         }
     }
 
-    printf("%d channels exported\n", i);
+    //printf("%d channels exported\n", i);
 
  cleanup:
-    if (o) {
-        if (o->module)
-            o->module->cleanup(o);
-        g_free(o);
-    }
-
-    if (t) {
-        if (t->module)
-            t->module->cleanup(t);
-        g_free(t);
-    }
-
+    if (o)
+        sat_output_free(o);
+    if (t)
+        sat_transform_free(t);
     if (analog.data)
         free(analog.data);
     if (gpkt.payload)
@@ -401,7 +393,7 @@ int main(int argc, char **argv)
 {
     int res;
     struct dirent **namelist;
-    int i, n;
+    int i, ch_cnt;
     int channel_total = 0;
     char *_input_dirname;
     char *input_dirname;
@@ -424,14 +416,14 @@ int main(int argc, char **argv)
     input_basename = basename(_input_basename);
 
     //printf("input files prefix is %s, dirname %s, basename %s\n", opt_input_prefix, input_dirname, input_basename);
-    n = scandir(input_dirname, &namelist, NULL, versionsort);
+    ch_cnt = scandir(input_dirname, &namelist, NULL, versionsort);
     list_init(channels);
 
     // create a linked list with all files that match the filter defined by the --input option
-    if (n < 0)
+    if (ch_cnt < 0)
         perror("scandir");
     else {
-        for (i = 0; i < n; i++) {
+        for (i = 0; i < ch_cnt; i++) {
             res = fnmatch(input_basename, namelist[i]->d_name, FNM_EXTMATCH);
             if (!res) {
                 //printf("%s matches\n", namelist[i]->d_name);
@@ -486,9 +478,7 @@ int main(int argc, char **argv)
                 }
                 list_add(channels, ch_data_ptr);
             }
-            free(namelist[n]);
         }
-        free(namelist);
     }
 
     if (!channel_total) {
@@ -504,6 +494,10 @@ int main(int argc, char **argv)
 #endif
 
  cleanup:
+    for (i = 0; i < ch_cnt; i++) {
+        free(namelist[i]);
+    }
+    free(namelist);
     ch_data_ptr = list_head(channels);
     if (ch_data_ptr)
         ll_free_all(&ch_data_ptr);

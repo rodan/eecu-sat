@@ -120,6 +120,8 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
 cleanup:
     if (ifd >= 0)
         close(ifd);
+    if (cco)
+        free(cco);
 
     return ret;
 }

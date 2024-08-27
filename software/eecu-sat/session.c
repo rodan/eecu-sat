@@ -95,8 +95,6 @@ const struct sat_transform *setup_transform_module(char *opt_transform_module)
     }
     t = sat_transform_new(tmod, fmtopts);
 
-    printf("transform set to %s\n", t->module->name);
-
     if (fmtopts)
         g_hash_table_destroy(fmtopts);
     g_hash_table_destroy(fmtargs);
