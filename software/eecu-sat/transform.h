@@ -16,10 +16,7 @@ struct sat_transform {
      */
     const struct sr_dev_inst *sdi;
 
-    uint16_t ch;
-    uint16_t chunk;
-
-     /**
+    /**
      * A generic pointer which can be used by the module to keep internal
      * state between calls into its callback functions.
      */

@@ -23,6 +23,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     FILE *fp = NULL;
     ssize_t byte_cnt;
     const struct sr_datafeed_analog *analog;
+    const struct dev_frame *frame = o->sdi->priv;
 
     filename = (char *)calloc(PATH_MAX, 1);
     if (filename == NULL) {
@@ -37,14 +38,14 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
         snprintf(filename, PATH_MAX - 1, "metadata");
         break;
     case SR_DF_ANALOG:
-        snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, o->ch);
+        snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, frame->ch);
         //printf("ch %d chunk%d\n", o->ch, o->chunk);
         break;
     default:
         goto cleanup;
     }
 
-    if (o->chunk == 1) {
+    if (frame->chunk == 1) {
         fp = fopen(filename, "w");
     } else {
         fp = fopen(filename, "a");

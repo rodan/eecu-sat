@@ -33,7 +33,7 @@ struct cmdline_opt {
 };
 
 struct ch_data {
-    struct ch_data *next;
+    //struct ch_data *next;
     char *input_file_name;
     char *output_file_name;
     //char *channel_name;
@@ -50,6 +50,35 @@ struct sat_generic_pkt {
 struct dev_frame {
     uint16_t ch;
     uint16_t chunk;
+};
+
+struct sr_dev_inst {
+	/** Device driver. */
+	//struct sr_dev_driver *driver;
+	/** Device instance status. SR_ST_NOT_FOUND, etc. */
+	int status;
+	/** Device instance type. SR_INST_USB, etc. */
+	//int inst_type;
+	/** Device vendor. */
+	//char *vendor;
+	/** Device model. */
+	//char *model;
+	/** Device version. */
+	//char *version;
+	/** Serial number. */
+	//char *serial_num;
+	/** Connection string to uniquely identify devices. */
+	//char *connection_id;
+	/** List of channels. */
+	GSList *channels;
+	/** List of sr_channel_group structs */
+	//GSList *channel_groups;
+	/** Device instance connection data (used?) */
+	//void *conn;
+	/** Device instance private data (used?) */
+	void *priv;
+	/** Session to which this device is currently assigned. */
+	//struct sr_session *session;
 };
 
 #endif

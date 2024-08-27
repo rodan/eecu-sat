@@ -21,9 +21,6 @@ struct sat_output {
 	 */
     char *filename;
 
-    uint16_t ch;
-    uint16_t chunk;
-
     /**
 	 * A generic pointer which can be used by the module to keep internal
 	 * state between calls into its callback functions.

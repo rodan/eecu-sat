@@ -53,6 +53,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     int ret = SR_OK;
     char *cco = NULL;
     char ccol[LINE_MAX_SZ];
+    struct dev_frame *frame = o->sdi->priv;
 
     switch (pkt->type) {
     case SR_DF_ANALOG:
@@ -62,7 +63,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
         break;
     case SR_DF_FRAME_BEGIN:
         memset(&outc->cal.channel, 0, sizeof(struct calib_channel));
-        outc->cal.channel.id = o->ch;
+        outc->cal.channel.id = frame->ch;
         outc->cal.channel.calibration_type = CALIB_TYPE_3_POINT;
         break;
     case SR_DF_FRAME_END:

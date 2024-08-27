@@ -46,6 +46,7 @@ static int receive(const struct sat_transform *t,
     ssize_t i;
     float cur;
     float *samples;
+    struct dev_frame *frame = t->sdi->priv;
 
     if (!t || !packet_in || !packet_out)
         return SR_ERR_ARG;
@@ -55,7 +56,7 @@ static int receive(const struct sat_transform *t,
 
     switch (packet_in->type) {
     case SR_DF_FRAME_BEGIN:
-        ctx->channel.id = t->ch;
+        ctx->channel.id = frame->ch;
         if ((calib_read_params_from_file(ctx->calib_file, &ctx->channel, CALIB_INI_CHANNEL)) != EXIT_SUCCESS) {
             fprintf(stderr, "error during calib_read_params_from_file()\n");
             return SR_ERR_ARG;

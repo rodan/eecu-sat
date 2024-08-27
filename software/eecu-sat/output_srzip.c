@@ -80,6 +80,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     struct out_context *outc = o->priv;
     const struct sr_datafeed_analog *analog;
     const struct sat_generic_pkt *gpkt;
+    const struct dev_frame *frame = o->sdi->priv;
 
     if (!(archive = zip_open(o->filename, 0, NULL)))
         return EXIT_FAILURE;
@@ -93,7 +94,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     case SR_DF_ANALOG:
         analog = pkt->payload;
         src = zip_source_buffer(archive, analog->data, analog->num_samples * sizeof(float), 0);
-        snprintf(outc->target_filename, PATH_MAX - 1, "analog-1-%d-%d", o->ch, o->chunk);
+        snprintf(outc->target_filename, PATH_MAX - 1, "analog-1-%d-%d", frame->ch, frame->chunk);
         break;
     default:
         goto cleanup;

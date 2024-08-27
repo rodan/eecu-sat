@@ -19,7 +19,6 @@
 #include "tlpi_hdr.h"
 #include "proj.h"
 #include "version.h"
-#include "list.h"
 #include "output.h"
 #include "output_analog.h"
 #include "output_srzip.h"
@@ -31,7 +30,6 @@
 // program arguments
 static char *opt_default_input_prefix = "analog_[0-9]*.bin";
 struct cmdline_opt opt = { 0 };
-LIST(channels);
 
 // 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
 static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
@@ -153,53 +151,11 @@ bool saleae_magic_is_present(uint8_t *data)
     return false;
 }
 
-#ifdef CONFIG_DEBUG
-void ll_print(ch_data_t *head)
-{
-    ch_data_t *p = head;
-
-    if (head == NULL) {
-        printf("ll is empty\n");
-        return;
-    }
-
-    while (NULL != p) {
-        printf("n %p, [%s] sz %ld  next %p\n", (void *)p, p->input_file_name, p->input_file_size, (void *)p->next);
-        if (p->next != NULL) {
-            p = p->next;
-        } else {
-            return;
-        }
-    }
-}
-#endif
-
-static void ll_free_all(ch_data_t **head)
-{
-    if (*head == NULL)
-        return;
-    ch_data_t *p = *head;
-    ch_data_t *del;
-
-    while (NULL != p) {
-        //printf("remove node @%p\n", (void *)p);
-        del = p;
-        if (del->input_file_name)
-            free(del->input_file_name);
-        if (del->output_file_name)
-            free(del->output_file_name);
-        p = p->next;
-        free(del);
-    }
-
-    *head = NULL;
-}
-
 static int run_session(const struct sr_dev_inst *sdi)
 {
     int ret = EXIT_SUCCESS;
-    struct sat_output *o = NULL;
-    struct sat_transform *t = NULL;
+    const struct sat_output *o = NULL;
+    const struct sat_transform *t = NULL;
     ch_data_t *ch_data_ptr;
     ssize_t read_len;
     int i, j;
@@ -208,10 +164,12 @@ static int run_session(const struct sr_dev_inst *sdi)
     struct sr_datafeed_packet *tpkt;
     struct sr_datafeed_analog analog = { 0 };
     struct sr_analog_encoding encoding = { 0 };
-	struct sr_analog_meaning meaning = { 0 };
-	struct sr_analog_spec spec = { 0 };
+    struct sr_analog_meaning meaning = { 0 };
+    struct sr_analog_spec spec = { 0 };
     struct sat_generic_pkt gpkt = { 0 };
     bool transform_initialized = 0;
+    GSList *l;
+    struct dev_frame *frame = sdi->priv;
 
     analog.encoding = &encoding;
     analog.meaning = &meaning;
@@ -254,11 +212,11 @@ static int run_session(const struct sr_dev_inst *sdi)
         goto cleanup;
     }
 
-    ch_data_ptr = list_head(channels);
     i = 0;
     pkt.payload = &analog;
 
-    while (NULL != ch_data_ptr) {
+    for (l = sdi->channels; l; l = l->next) {
+        ch_data_ptr = l->data;
         i++;
 
         if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
@@ -292,12 +250,12 @@ static int run_session(const struct sr_dev_inst *sdi)
 
         j = 1;
         while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
-            o->ch = i;
-            o->chunk = j;
-            if (transform_initialized) {
-                t->ch = i;
-                t->chunk = j;
-            }
+            frame->ch = i;
+            frame->chunk = j;
+            //if (transform_initialized) {
+            //    t->ch = i;
+            //    t->chunk = j;
+            //}
             if (j == 1) {
                 pkt.type = SR_DF_FRAME_BEGIN;
                 if (transform_initialized)
@@ -321,12 +279,6 @@ static int run_session(const struct sr_dev_inst *sdi)
             t->module->receive(t, &pkt, &tpkt);
         }
         o->module->receive(o, &pkt);
-
-        if (ch_data_ptr->next != NULL) {
-            ch_data_ptr = ch_data_ptr->next;
-        } else {
-            break;
-        }
     }
 
     //printf("%d channels exported\n", i);
@@ -359,7 +311,9 @@ int main(int argc, char **argv)
     ch_data_t *ch_data_ptr;
     ssize_t file_size_compare = -1;
     int ret = EXIT_SUCCESS;
-    struct sr_dev_inst sdi;
+    struct sr_dev_inst sdi = { 0 };
+    struct dev_frame frame = { 0 };
+    GSList *l;
 
     if (parse_options(argc, argv)) {
         return EXIT_FAILURE;
@@ -373,7 +327,8 @@ int main(int argc, char **argv)
 
     //printf("input files prefix is %s, dirname %s, basename %s\n", opt_input_prefix, input_dirname, input_basename);
     ch_cnt = scandir(input_dirname, &namelist, NULL, versionsort);
-    list_init(channels);
+
+    sdi.priv = &frame;
 
     // create a linked list with all files that match the filter defined by the --input option
     if (ch_cnt < 0)
@@ -432,7 +387,7 @@ int main(int argc, char **argv)
                     ret = EXIT_FAILURE;
                     goto cleanup;
                 }
-                list_add(channels, ch_data_ptr);
+                sdi.channels = g_slist_append(sdi.channels, ch_data_ptr);
             }
         }
     }
@@ -446,7 +401,10 @@ int main(int argc, char **argv)
     ret = run_session(&sdi);
 
 #ifdef CONFIG_DEBUG
-    //ll_print(list_head(channels));
+    //for (l = sdi.channels; l; l = l->next) {
+    //    ch_data_ptr = l->data;
+    //    printf("file in list %s\n", ch_data_ptr->input_file_name);
+    //}
 #endif
 
  cleanup:
@@ -454,9 +412,17 @@ int main(int argc, char **argv)
         free(namelist[i]);
     }
     free(namelist);
-    ch_data_ptr = list_head(channels);
-    if (ch_data_ptr)
-        ll_free_all(&ch_data_ptr);
+    if (sdi.channels) {
+        for (l = sdi.channels; l; l = l->next) {
+            ch_data_ptr = l->data;
+            if (ch_data_ptr->input_file_name)
+                free(ch_data_ptr->input_file_name);
+            if (ch_data_ptr->output_file_name)
+                free(ch_data_ptr->output_file_name);
+            free(l->data);
+        }
+        g_slist_free(sdi.channels);
+    }
     free(_input_dirname);
     free(_input_basename);
 
