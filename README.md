@@ -55,12 +55,8 @@ make
 
 ### TODO list (In Progress)
 
-- [ ] 3-point calibration of all analog channels
-  - [ ] use ini file to input calibration paramenters
-  - [ ] analyze analog calibration signals, detect the calibration points
-  - [ ] apply acceptance criteria to input calibration signal
-  - [ ] export slopes and offsets into calibration ini file
 - [ ] synchronize multiple sets of 16 channel acquisitions into one 48 channel srzip file
+ - [ ] crop intervals in a signal, based on a trigger
 - [ ] analyze all 48 channels and automatically detect faults based on a known good reference capture
 
 ### Done
@@ -68,6 +64,11 @@ make
 - [x] cover project with coverity static scan
 - [x] convert Logic exported raw analog signals into srzip files that can be loaded in pulseview
 - [x] relabeling capability of channels when seen in pulseview
+- [x] 3-point calibration of all analog channels
+  - [x] use ini file to input calibration paramenters
+  - [x] analyze analog calibration signals, detect the calibration points
+  - [x] apply acceptance criteria to input calibration signal
+  - [x] export slopes and offsets into calibration ini file
 
 
 ![tool in use](./doc/img/esat_in_use.jpg)

@@ -9,10 +9,26 @@
 #include "tlpi_hdr.h"
 #include "output.h"
 
+struct out_context {
+    uint32_t channel_offset;
+};
+
 static int init(struct sat_output *o, GHashTable *options)
 {
-    UNUSED(o);
-    UNUSED(options);
+    struct out_context *outc;
+
+    if (!o || !options)
+        return SR_ERR_ARG;
+
+    outc = (struct out_context *)calloc(1, sizeof(struct out_context));
+    if (outc == NULL) {
+        errMsg("calloc error");
+        return EXIT_FAILURE;
+    }
+    o->priv = outc;
+
+    outc->channel_offset = g_variant_get_uint32(g_hash_table_lookup(options, "channel_offset"));
+
     return EXIT_SUCCESS;
 }
 
@@ -24,6 +40,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     ssize_t byte_cnt;
     const struct sr_datafeed_analog *analog;
     const struct dev_frame *frame = o->sdi->priv;
+    const struct out_context *outc = o->priv;
 
     filename = (char *)calloc(PATH_MAX, 1);
     if (filename == NULL) {
@@ -38,8 +55,7 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
         snprintf(filename, PATH_MAX - 1, "metadata");
         break;
     case SR_DF_ANALOG:
-        snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, frame->ch);
-        //printf("ch %d chunk%d\n", o->ch, o->chunk);
+        snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, frame->ch + outc->channel_offset);
         break;
     default:
         goto cleanup;
@@ -70,14 +86,14 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
 }
 
 static struct sr_option options[] = {
-    {"first_channel", "First channel", "identifier for the first channel", NULL, NULL},
+    {"channel_offset", "channel offset", "offset to add to all channel identifiers", NULL, NULL},
     ALL_ZERO
 };
 
 static const struct sr_option *get_options(void)
 {
     if (!options[0].def) {
-        options[0].def = g_variant_ref_sink(g_variant_new_string(""));
+        options[0].def = g_variant_new_uint32(0);
     }
 
     return options;
@@ -85,7 +101,17 @@ static const struct sr_option *get_options(void)
 
 static int cleanup(struct sat_output *o)
 {
-    UNUSED(o);
+    struct out_context *outc;
+
+    if (o == NULL)
+        return EXIT_FAILURE;
+
+    if (o->priv) {
+        outc = o->priv;
+        free(outc);
+        o->priv = NULL;
+    }
+
     return EXIT_SUCCESS;
 }
 
