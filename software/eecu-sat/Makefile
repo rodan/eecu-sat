@@ -43,6 +43,7 @@ COVERITY_SCAN_TOKEN := $(shell cat ../../.secrets.COVERITY_SCAN_TOKEN 2>/dev/nul
 .PHONY: all
 .PHONY: clean
 .PHONY: tags
+.PHONY: test
 .PHONY: lib
 
 all : libs version.h $(EXOUTPUT)
@@ -87,6 +88,9 @@ clean-lib:
 tags: $(SRCS)
 	@echo "Generating tags .."
 	@exuberant-ctags -R
+
+test:
+	@bash ../unit_tests/run_tests.sh
 
 cppcheck: $(PROJ)
 	@cppcheck --quiet --force --enable=warning --enable=performance --enable=information --enable=performance --enable=portability -I ./ ./

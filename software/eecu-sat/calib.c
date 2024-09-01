@@ -200,8 +200,8 @@ int calib_init_from_buffer(float *buffer, ssize_t num_samples, calib_context_t *
     }
     calib_check_stab(g, c);
 
-    printf("oob_floor_cnt %ld\noob_ceil_cnt %ld\ntotal samples %ld\n", c->oob_floor_cnt, c->oob_ceil_cnt, c->total_samples);
-    printf("stab_cnt %ld\nchecklist %x\n", c->stab_cnt, c->checklist);
+    //printf("oob_floor_cnt %ld\noob_ceil_cnt %ld\ntotal samples %ld\n", c->oob_floor_cnt, c->oob_ceil_cnt, c->total_samples);
+    //printf("stab_cnt %ld\nchecklist %x\n", c->stab_cnt, c->checklist);
 
     if (c->checklist != (CALIB_P0_DONE | CALIB_P1_DONE | CALIB_P2_DONE)) {
         fprintf(stderr, "calibration error: cannot detect stable signals\n");
