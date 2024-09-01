@@ -62,24 +62,6 @@ const struct sr_output *setup_output_format(const struct sr_dev_inst *sdi, char 
 	}
 	o = sat_output_new(omod, fmtopts, sdi, opt_output_file);
 
-#if 0
-	if (opt_output_file) {
-		if (!sat_output_test_flag(omod, SR_OUTPUT_INTERNAL_IO_HANDLING)) {
-			*outfile = g_fopen(opt_output_file, "wb");
-			if (!*outfile) {
-				g_critical("Cannot write to output file '%s'.",
-					opt_output_file);
-			}
-		} else {
-			*outfile = NULL;
-		}
-	} else {
-	    g_critical("output file not defined, exiting");
-		//setup_binary_stdout();
-		//*outfile = stdout;
-	}
-#endif
-
 	if (fmtopts)
 		g_hash_table_destroy(fmtopts);
 	g_hash_table_destroy(fmtargs);
@@ -161,6 +143,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         return EXIT_FAILURE;
     }
 
+#if 0
 	if (opt->triggers) {
 		if (!parse_triggerstring(sdi, opt->triggers, &trigger)) {
             fprintf(stderr, "Failed to initialize trigger module.\n");
@@ -171,6 +154,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 		//	return EXIT_FAILURE;
 		//}
 	}
+#endif
 
     if (opt->transform_module) {
         if (!(t = setup_transform_module(sdi, opt->transform_module))) {
@@ -227,10 +211,6 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
             frame->ch = i;
             frame->chunk = j;
-            //if (transform_initialized) {
-            //    t->ch = i;
-            //    t->chunk = j;
-            //}
             if (j == 1) {
                 pkt.type = SR_DF_FRAME_BEGIN;
                 if (transform_initialized)
@@ -268,4 +248,3 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 
     return ret;
 }
-

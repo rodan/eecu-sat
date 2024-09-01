@@ -74,7 +74,7 @@ mkdir -p "${tmp_dir}"
 
 [ ! -e "${sample_dir}" ] && {
     mkdir -p "${sample_dir}"
-    unzip sample_files.zip -d "${sample_dir}" >/dev/null
+    unzip "${prefix}/sample_files.zip" -d "${sample_dir}" >/dev/null
 }
 
 error_detected=false

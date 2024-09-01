@@ -89,7 +89,7 @@ tags: $(SRCS)
 	@echo "Generating tags .."
 	@exuberant-ctags -R
 
-test:
+test: $(PROJ)
 	@bash ../unit_tests/run_tests.sh
 
 cppcheck: $(PROJ)
