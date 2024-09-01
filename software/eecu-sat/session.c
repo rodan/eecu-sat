@@ -2,18 +2,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <fcntl.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include "proj.h"
+#include "tlpi_hdr.h"
 #include "parsers.h"
 #include "output.h"
 #include "transform.h"
 
-const struct sat_output *setup_output_format(const struct sr_dev_inst *sdi, char *opt_output_file, char *opt_output_format)
+const struct sr_output *setup_output_format(const struct sr_dev_inst *sdi, char *opt_output_file, char *opt_output_format)
 {
-	const struct sat_output_module *omod;
+	const struct sr_output_module *omod;
 	const struct sr_option **options;
-	const struct sat_output *o;
+	const struct sr_output *o;
 	GHashTable *fmtargs, *fmtopts;
 	char *fmtspec;
 
@@ -67,11 +69,11 @@ const struct sat_output *setup_output_format(const struct sr_dev_inst *sdi, char
 	return o;
 }
 
-const struct sat_transform *setup_transform_module(const struct sr_dev_inst *sdi, char *opt_transform_module)
+const struct sr_transform *setup_transform_module(const struct sr_dev_inst *sdi, char *opt_transform_module)
 {
-    const struct sat_transform_module *tmod;
+    const struct sr_transform_module *tmod;
     const struct sr_option **options;
-    const struct sat_transform *t;
+    const struct sr_transform *t;
     GHashTable *fmtargs, *fmtopts;
     char *fmtspec;
 
@@ -102,4 +104,150 @@ const struct sat_transform *setup_transform_module(const struct sr_dev_inst *sdi
     return t;
 }
 
+int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
+{
+    int ret = EXIT_SUCCESS;
+    const struct sr_output *o = NULL;
+    const struct sr_transform *t = NULL;
+    ch_data_t *ch_data_ptr;
+    ssize_t read_len;
+    int i, j;
+    int fd;
+    struct sr_datafeed_packet pkt = { 0 };
+    struct sr_datafeed_packet *tpkt;
+    struct sr_datafeed_analog analog = { 0 };
+    struct sr_analog_encoding encoding = { 0 };
+    struct sr_analog_meaning meaning = { 0 };
+    struct sr_analog_spec spec = { 0 };
+    struct sr_trigger *trigger = NULL;
+    bool transform_initialized = 0;
+    GSList *l;
+    struct dev_frame *frame = sdi->priv;
+
+    analog.encoding = &encoding;
+    analog.meaning = &meaning;
+    analog.spec = &spec;
+
+    if (!opt->output_format) {
+        fprintf(stderr, "output format not selected\n");
+        return EXIT_FAILURE;
+    }
+
+    if (opt->output_file) {
+        if (!(o = setup_output_format(sdi, opt->output_file, opt->output_format))) {
+            fprintf(stderr, "Failed to initialize transform module.\n");
+            return EXIT_FAILURE;
+        }
+    } else {
+        fprintf(stderr, "output file not defined, exiting.\n");
+        return EXIT_FAILURE;
+    }
+
+	if (opt->triggers) {
+		if (!parse_triggerstring(sdi, opt->triggers, &trigger)) {
+            fprintf(stderr, "Failed to initialize trigger module.\n");
+			return EXIT_FAILURE;
+		}
+		//if (sr_session_trigger_set(session, trigger) != SR_OK) {
+        //    fprintf(stderr, "Failed to initialize trigger module.\n");
+		//	return EXIT_FAILURE;
+		//}
+	}
+
+    if (opt->transform_module) {
+        if (!(t = setup_transform_module(sdi, opt->transform_module))) {
+            fprintf(stderr, "Failed to initialize transform module.\n");
+            return EXIT_FAILURE;
+        }
+        transform_initialized = 1;
+    }
+
+    analog.data = (uint8_t *) calloc(CHUNK_SIZE, 1);
+    if (!analog.data) {
+        errMsg("during calloc");
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    i = 0;
+    pkt.payload = &analog;
+
+    for (l = sdi->channels; l; l = l->next) {
+        ch_data_ptr = l->data;
+        i++;
+
+        if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
+            errMsg("opening input file");
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+
+        // skip saleae header if present
+        if (read(fd, analog.data, 8) != 8) {
+            errMsg("during read()");
+            close(fd);
+            ret = EXIT_FAILURE;
+            goto cleanup;
+        }
+        if (saleae_magic_is_present(analog.data)) {
+            if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
+                errMsg("during lseek()");
+                close(fd);
+                ret = EXIT_FAILURE;
+                goto cleanup;
+            }
+        } else {
+            if (lseek(fd, 0x0, SEEK_SET) < 0) {
+                errMsg("during lseek()");
+                close(fd);
+                ret = EXIT_FAILURE;
+                goto cleanup;
+            }
+        }
+
+        j = 1;
+        while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
+            frame->ch = i;
+            frame->chunk = j;
+            //if (transform_initialized) {
+            //    t->ch = i;
+            //    t->chunk = j;
+            //}
+            if (j == 1) {
+                pkt.type = SR_DF_FRAME_BEGIN;
+                if (transform_initialized)
+                    t->module->receive(t, &pkt, &tpkt);
+                o->module->receive(o, &pkt, NULL);
+            }
+            pkt.type = SR_DF_ANALOG;
+            analog.num_samples = read_len / sizeof(float);
+            if (transform_initialized) {
+                t->module->receive(t, &pkt, &tpkt);
+                o->module->receive(o, tpkt, NULL);
+            } else {
+                o->module->receive(o, &pkt, NULL);
+            }
+            j++;
+        }
+        close(fd);
+
+        pkt.type = SR_DF_FRAME_END;
+        if (transform_initialized) {
+            t->module->receive(t, &pkt, &tpkt);
+        }
+        o->module->receive(o, &pkt, NULL);
+    }
+
+    //printf("%d channels exported\n", i);
+
+ cleanup:
+    if (o)
+        sat_output_free(o);
+    if (t)
+        sat_transform_free(t);
+    if (analog.data)
+        free(analog.data);
+
+    return ret;
+}
 

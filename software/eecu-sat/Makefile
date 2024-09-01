@@ -24,8 +24,8 @@ LDFLAGS_REL	 += -Wl,-s
 CFLAGS_DBG	 += -O1 -ggdb -DNDEBUG # -pg
 LDFLAGS_DBG	 += # -pg
 
-MANDATORY_CFLAGS=-fPIC -pedantic -Wall -Wextra -Wno-sign-compare -Wa,-ahl=$(@:.o=.s) `pkgconf --cflags libzip` `pkgconf --cflags glib-2.0`
-MANDATORY_LDFLAGS=`pkgconf --libs libzip` `pkgconf --libs glib-2.0`
+MANDATORY_CFLAGS=-fPIC -pedantic -Wall -Wextra -Wno-sign-compare -Wa,-ahl=$(@:.o=.s) `pkgconf --cflags libzip` `pkgconf --cflags glib-2.0` `pkgconf --cflags libsigrok`
+MANDATORY_LDFLAGS=`pkgconf --libs libzip` `pkgconf --libs glib-2.0` `pkgconf --libs libsigrok`
 
 DEBUG := $(shell grep "^#define CONFIG_DEBUG" config.h)
 ifeq ($(DEBUG),)

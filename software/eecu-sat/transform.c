@@ -1,10 +1,29 @@
+/*
+ * This file is part of the libsigrok project.
+ *
+ * Copyright (C) 2014 Bert Vermeulen <bert@biot.com>
+ * Copyright (C) 2015 Uwe Hermann <uwe@hermann-uwe.de>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <stdio.h>
 #include <string.h>
 #include "transform.h"
 #include "transform_calibrate_linear_3p.h"
 
-static const struct sat_transform_module *transform_module_list[] = {
+static const struct sr_transform_module *transform_module_list[] = {
     &transform_calibrate_linear_3p,
     NULL,
 };
@@ -12,7 +31,7 @@ static const struct sat_transform_module *transform_module_list[] = {
 /**
  * Returns a NULL-terminated list of all available transform modules.
  */
-const struct sat_transform_module **sat_transform_list(void)
+const struct sr_transform_module **sat_transform_list(void)
 {
     return transform_module_list;
 }
@@ -20,7 +39,7 @@ const struct sat_transform_module **sat_transform_list(void)
 /**
  * Returns the specified transform module's ID.
  */
-const char *sat_transform_id_get(const struct sat_transform_module *tmod)
+const char *sat_transform_id_get(const struct sr_transform_module *tmod)
 {
     if (!tmod) {
         fprintf(stderr, "Invalid transform module NULL!\n");
@@ -33,7 +52,7 @@ const char *sat_transform_id_get(const struct sat_transform_module *tmod)
 /**
  * Returns the specified transform module's name.
  */
-const char *sat_transform_name_get(const struct sat_transform_module *tmod)
+const char *sat_transform_name_get(const struct sr_transform_module *tmod)
 {
     if (!tmod) {
         fprintf(stderr, "Invalid transform module NULL!\n");
@@ -46,7 +65,7 @@ const char *sat_transform_name_get(const struct sat_transform_module *tmod)
 /**
  * Returns the specified transform module's description.
  */
-const char *sat_transform_description_get(const struct sat_transform_module *tmod)
+const char *sat_transform_description_get(const struct sr_transform_module *tmod)
 {
     if (!tmod) {
         fprintf(stderr, "Invalid transform module NULL!\n");
@@ -60,7 +79,7 @@ const char *sat_transform_description_get(const struct sat_transform_module *tmo
  * Return the transform module with the specified ID, or NULL if no module
  * with that ID is found.
  */
-const struct sat_transform_module *sat_transform_find(const char *id)
+const struct sr_transform_module *sat_transform_find(const char *id)
 {
     int i;
 
@@ -81,7 +100,7 @@ const struct sat_transform_module *sat_transform_find(const char *id)
  *
  * @since 0.4.0
  */
-const struct sr_option **sat_transform_options_get(const struct sat_transform_module *tmod)
+const struct sr_option **sat_transform_options_get(const struct sr_transform_module *tmod)
 {
     const struct sr_option *mod_opts, **opts;
     int size, i;
@@ -141,9 +160,9 @@ void sat_transform_options_free(const struct sr_option **options)
  *
  * @since 0.4.0
  */
-const struct sat_transform *sat_transform_new(const struct sat_transform_module *tmod, GHashTable *options, const struct sr_dev_inst *sdi)
+const struct sr_transform *sat_transform_new(const struct sr_transform_module *tmod, GHashTable *options, const struct sr_dev_inst *sdi)
 {
-    struct sat_transform *t;
+    struct sr_transform *t;
     const struct sr_option *mod_opts;
     const GVariantType *gvt;
     GHashTable *new_opts;
@@ -151,7 +170,7 @@ const struct sat_transform *sat_transform_new(const struct sat_transform_module 
     gpointer key, value;
     int i;
 
-    t = g_malloc(sizeof(struct sat_transform));
+    t = g_malloc(sizeof(struct sr_transform));
     t->module = tmod;
     t->sdi = sdi;
 
@@ -206,7 +225,7 @@ const struct sat_transform *sat_transform_new(const struct sat_transform_module 
  *
  * @since 0.4.0
  */
-int sat_transform_free(const struct sat_transform *t)
+int sat_transform_free(const struct sr_transform *t)
 {
     int ret;
 
@@ -215,7 +234,7 @@ int sat_transform_free(const struct sat_transform *t)
 
     ret = SR_OK;
     if (t->module->cleanup)
-        ret = t->module->cleanup((struct sat_transform *)t);
+        ret = t->module->cleanup((struct sr_transform *)t);
     g_free((gpointer) t);
 
     return ret;

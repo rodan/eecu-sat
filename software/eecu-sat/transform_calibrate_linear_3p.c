@@ -16,7 +16,7 @@ struct context {
     calib_channel_t channel;
 };
 
-static int init(struct sat_transform *t, GHashTable *options)
+static int init(struct sr_transform *t, GHashTable *options)
 {
     struct context *ctx;
 
@@ -36,7 +36,7 @@ static int init(struct sat_transform *t, GHashTable *options)
     return SR_OK;
 }
 
-static int receive(const struct sat_transform *t,
+static int receive(const struct sr_transform *t,
                    struct sr_datafeed_packet *packet_in, struct sr_datafeed_packet **packet_out)
 {
     struct context *ctx;
@@ -90,7 +90,7 @@ static int receive(const struct sat_transform *t,
     return SR_OK;
 }
 
-static int cleanup(struct sat_transform *t)
+static int cleanup(struct sr_transform *t)
 {
     struct context *ctx;
 
@@ -122,7 +122,7 @@ static const struct sr_option *get_options(void)
     return options;
 }
 
-struct sat_transform_module transform_calibrate_linear_3p = {
+struct sr_transform_module transform_calibrate_linear_3p = {
     .id = "calibrate_linear_3p",
     .name = "calibrate_linear_3p",
     .desc = "linear calibration in 3 points",

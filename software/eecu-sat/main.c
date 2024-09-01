@@ -31,10 +31,6 @@
 static char *opt_default_input_prefix = "analog_[0-9]*.bin";
 struct cmdline_opt opt = { 0 };
 
-// 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
-static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
-#define SALEAE_HEADER_SZ 0x30
-
 static void show_usage(void)
 {
     fprintf(stdout, "Usage: eecu-sat [-i PREFIX] [-o FILE]\n");
@@ -44,11 +40,10 @@ static void show_usage(void)
     fprintf(stdout, "\t\toutput file to be generated\n");
     fprintf(stdout, "\t-O, --output-format OUTPUT\n");
     fprintf(stdout, "\t\toutput data format to use, see -L for list\n");
-    fprintf(stdout, "\t-s, --skip\n");
-    fprintf(stdout, "\t\tskips the first 0x30 bytes (saleae header)\n");
+    fprintf(stdout, "\t-t, --triggers TRIGGERS\n");
+    fprintf(stdout, "\t\ttrigger configuration\n");
     fprintf(stdout, "\t-T, --transform-module TRANSFORM\n");
     fprintf(stdout, "\t\tprocess data via a function, see -L for list\n");
-    fprintf(stdout, "\t--initcal\n");
     fprintf(stdout, "\t-L, --list\n");
     fprintf(stdout, "\t\tlist known output formats and transform modules\n");
     fprintf(stdout, "\t-h, --help\n");
@@ -62,8 +57,8 @@ static void show_version(void)
 
 static void show_capabilities(void)
 {
-    const struct sat_output_module **outputs;
-    const struct sat_transform_module **transforms;
+    const struct sr_output_module **outputs;
+    const struct sr_transform_module **transforms;
     int i;
 
     printf("Supported output formats:\n");
@@ -90,16 +85,15 @@ static int parse_options(int argc, char **argv)
             {"input", 1, 0, 'i'},
             {"output", 1, 0, 'o'},
             {"output-format", 1, 0, 'O'},
+            {"triggers", 1, 0, 't'},
             {"transform-module", 1, 0, 'T'},
-            {"skip", 0, 0, 's'},
-            {"initcal", 0, 0, 'x'},
             {"list", 0, 0, 'L'},
             {"help", 0, 0, 'h'},
             {"version", 0, 0, 'v'},
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:O:T:xhLv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:o:O:t:T:Lhv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
@@ -113,15 +107,11 @@ static int parse_options(int argc, char **argv)
         case 'O':
             opt.output_format = optarg;
             break;
+        case 't':
+            opt.triggers = optarg;
+            break;
         case 'T':
             opt.transform_module = optarg;
-            break;
-        case 'x':
-            opt.action |= ACTION_DO_CALIB_INIT;
-            opt.action &= ~ACTION_DO_CONVERT;
-            break;
-        case 's':
-            opt.skip_header = true;
             break;
         case 'L':
             show_capabilities();
@@ -144,156 +134,26 @@ static int parse_options(int argc, char **argv)
     return EXIT_SUCCESS;
 }
 
-bool saleae_magic_is_present(uint8_t *data)
+int maybe_config_set(struct sr_dev_driver *driver,
+		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
+		uint32_t key, GVariant *gvar)
 {
-    if (memcmp(data, saleae_magic, 8) == 0)
-        return true;
-    return false;
+	(void)driver;
+
+	if (sr_dev_config_capabilities_list(sdi, cg, key) & SR_CONF_SET)
+		return sr_config_set(sdi, cg, key, gvar);
+
+	return SR_ERR_NA;
 }
 
-static int run_session(const struct sr_dev_inst *sdi)
+int maybe_config_list(struct sr_dev_driver *driver,
+		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
+		uint32_t key, GVariant **gvar)
 {
-    int ret = EXIT_SUCCESS;
-    const struct sat_output *o = NULL;
-    const struct sat_transform *t = NULL;
-    ch_data_t *ch_data_ptr;
-    ssize_t read_len;
-    int i, j;
-    int fd;
-    struct sr_datafeed_packet pkt = { 0 };
-    struct sr_datafeed_packet *tpkt;
-    struct sr_datafeed_analog analog = { 0 };
-    struct sr_analog_encoding encoding = { 0 };
-    struct sr_analog_meaning meaning = { 0 };
-    struct sr_analog_spec spec = { 0 };
-    struct sat_generic_pkt gpkt = { 0 };
-    bool transform_initialized = 0;
-    GSList *l;
-    struct dev_frame *frame = sdi->priv;
+	if (sr_dev_config_capabilities_list(sdi, cg, key) & SR_CONF_LIST)
+		return sr_config_list(driver, sdi, cg, key, gvar);
 
-    analog.encoding = &encoding;
-    analog.meaning = &meaning;
-    analog.spec = &spec;
-
-    if (!opt.output_format) {
-        fprintf(stderr, "output format not selected\n");
-        return EXIT_FAILURE;
-    }
-
-    if (opt.output_file) {
-        if (!(o = setup_output_format(sdi, opt.output_file, opt.output_format))) {
-            fprintf(stderr, "Failed to initialize transform module.\n");
-            return EXIT_FAILURE;
-        }
-    } else {
-        fprintf(stderr, "output file not defined, exiting.\n");
-        return EXIT_FAILURE;
-    }
-
-    if (opt.transform_module) {
-        if (!(t = setup_transform_module(sdi, opt.transform_module))) {
-            fprintf(stderr, "Failed to initialize transform module.\n");
-            return EXIT_FAILURE;
-        }
-        transform_initialized = 1;
-    }
-
-    analog.data = (uint8_t *) calloc(CHUNK_SIZE, 1);
-    if (!analog.data) {
-        errMsg("during calloc");
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-
-    gpkt.payload = (uint8_t *) calloc(CHUNK_SIZE, 1);
-    if (!gpkt.payload) {
-        errMsg("during calloc");
-        ret = EXIT_FAILURE;
-        goto cleanup;
-    }
-
-    i = 0;
-    pkt.payload = &analog;
-
-    for (l = sdi->channels; l; l = l->next) {
-        ch_data_ptr = l->data;
-        i++;
-
-        if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
-            errMsg("opening input file");
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-
-        // skip saleae header if present
-        if (read(fd, analog.data, 8) != 8) {
-            errMsg("during read()");
-            close(fd);
-            ret = EXIT_FAILURE;
-            goto cleanup;
-        }
-        if (saleae_magic_is_present(analog.data)) {
-            if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
-                errMsg("during lseek()");
-                close(fd);
-                ret = EXIT_FAILURE;
-                goto cleanup;
-            }
-        } else {
-            if (lseek(fd, 0x0, SEEK_SET) < 0) {
-                errMsg("during lseek()");
-                close(fd);
-                ret = EXIT_FAILURE;
-                goto cleanup;
-            }
-        }
-
-        j = 1;
-        while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
-            frame->ch = i;
-            frame->chunk = j;
-            //if (transform_initialized) {
-            //    t->ch = i;
-            //    t->chunk = j;
-            //}
-            if (j == 1) {
-                pkt.type = SR_DF_FRAME_BEGIN;
-                if (transform_initialized)
-                    t->module->receive(t, &pkt, &tpkt);
-                o->module->receive(o, &pkt);
-            }
-            pkt.type = SR_DF_ANALOG;
-            analog.num_samples = read_len / sizeof(float);
-            if (transform_initialized) {
-                t->module->receive(t, &pkt, &tpkt);
-                o->module->receive(o, tpkt);
-            } else {
-                o->module->receive(o, &pkt);
-            }
-            j++;
-        }
-        close(fd);
-
-        pkt.type = SR_DF_FRAME_END;
-        if (transform_initialized) {
-            t->module->receive(t, &pkt, &tpkt);
-        }
-        o->module->receive(o, &pkt);
-    }
-
-    //printf("%d channels exported\n", i);
-
- cleanup:
-    if (o)
-        sat_output_free(o);
-    if (t)
-        sat_transform_free(t);
-    if (analog.data)
-        free(analog.data);
-    if (gpkt.payload)
-        free(gpkt.payload);
-
-    return ret;
+	return SR_ERR_NA;
 }
 
 int main(int argc, char **argv)
@@ -354,19 +214,6 @@ int main(int argc, char **argv)
                     goto cleanup;
                 }
                 snprintf(ch_data_ptr->input_file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
-
-                if (opt.output_file && (opt.action & ACTION_DO_CALIBRATION)) {
-                    file_name_len = strlen(opt.output_file) + strlen(namelist[i]->d_name);
-                    ch_data_ptr->output_file_name = (char *)calloc(file_name_len + 3, sizeof(char));
-                    if (!ch_data_ptr->output_file_name) {
-                        errMsg("during calloc");
-                        ret = EXIT_FAILURE;
-                        goto cleanup;
-                    }
-                    snprintf(ch_data_ptr->output_file_name, file_name_len + 2, "%s/%s", opt.output_file,
-                             namelist[i]->d_name);
-                }
-
                 ch_data_ptr->id = channel_total;
 
                 // get file size
@@ -398,7 +245,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    ret = run_session(&sdi);
+    ret = run_session(&sdi, &opt);
 
 #ifdef CONFIG_DEBUG
     //for (l = sdi.channels; l; l = l->next) {

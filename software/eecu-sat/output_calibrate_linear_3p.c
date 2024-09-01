@@ -17,7 +17,7 @@ struct out_context {
     calib_context_t cal;
 };
 
-static int init(struct sat_output *o, GHashTable *options)
+static int init(struct sr_output *o, GHashTable *options)
 {
     struct out_context *outc;
 
@@ -42,7 +42,7 @@ static int init(struct sat_output *o, GHashTable *options)
     return EXIT_SUCCESS;
 }
 
-static int receive(const struct sat_output *o, const struct sr_datafeed_packet *pkt)
+static int receive(const struct sr_output *o, const struct sr_datafeed_packet *pkt, GString **out)
 {
     struct out_context *outc = o->priv;
     const struct sr_datafeed_analog *analog;
@@ -54,6 +54,8 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     char *cco = NULL;
     char ccol[LINE_MAX_SZ];
     struct dev_frame *frame = o->sdi->priv;
+
+    UNUSED(out);
 
     switch (pkt->type) {
     case SR_DF_ANALOG:
@@ -141,7 +143,7 @@ static const struct sr_option *get_options(void)
     return options;
 }
 
-static int cleanup(struct sat_output *o)
+static int cleanup(struct sr_output *o)
 {
     struct out_context *outc;
 
@@ -159,7 +161,7 @@ static int cleanup(struct sat_output *o)
     return EXIT_SUCCESS;
 }
 
-struct sat_output_module output_calibrate_linear_3p = {
+struct sr_output_module output_calibrate_linear_3p = {
     .id = "calibrate_linear_3p",
     .name = "calibrate linear 3p",
     .desc = "parameters for linear calibration in 3 points",

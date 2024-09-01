@@ -15,7 +15,7 @@ struct out_context {
     char *metadata_file;
 };
 
-static int init(struct sat_output *o, GHashTable *options)
+static int init(struct sr_output *o, GHashTable *options)
 {
     struct zip_source *src;
     struct zip_source *metadata = NULL;
@@ -73,7 +73,7 @@ static int init(struct sat_output *o, GHashTable *options)
     return EXIT_SUCCESS;
 }
 
-static int receive(const struct sat_output *o, const struct sr_datafeed_packet *pkt)
+static int receive(const struct sr_output *o, const struct sr_datafeed_packet *pkt, GString **out)
 {
     struct zip *archive;
     struct zip_source *src;
@@ -81,6 +81,8 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     const struct sr_datafeed_analog *analog;
     const struct sat_generic_pkt *gpkt;
     const struct dev_frame *frame = o->sdi->priv;
+
+    UNUSED(out);
 
     if (!(archive = zip_open(o->filename, 0, NULL)))
         return EXIT_FAILURE;
@@ -131,7 +133,7 @@ static const struct sr_option *get_options(void)
 	return options;
 }
 
-static int cleanup(struct sat_output *o)
+static int cleanup(struct sr_output *o)
 {
     struct out_context *outc;
 
@@ -151,7 +153,7 @@ static int cleanup(struct sat_output *o)
     return EXIT_SUCCESS;
 }
 
-struct sat_output_module output_srzip = {
+struct sr_output_module output_srzip = {
     .id = "srzip",
     .name = "srzip",
     .desc = "sigrok session file format data",

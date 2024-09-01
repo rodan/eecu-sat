@@ -13,7 +13,7 @@ struct out_context {
     uint32_t channel_offset;
 };
 
-static int init(struct sat_output *o, GHashTable *options)
+static int init(struct sr_output *o, GHashTable *options)
 {
     struct out_context *outc;
 
@@ -32,7 +32,7 @@ static int init(struct sat_output *o, GHashTable *options)
     return EXIT_SUCCESS;
 }
 
-static int receive(const struct sat_output *o, const struct sr_datafeed_packet *pkt)
+static int receive(const struct sr_output *o, const struct sr_datafeed_packet *pkt, GString **out)
 {
     int ret = EXIT_SUCCESS;
     char *filename;
@@ -41,6 +41,8 @@ static int receive(const struct sat_output *o, const struct sr_datafeed_packet *
     const struct sr_datafeed_analog *analog;
     const struct dev_frame *frame = o->sdi->priv;
     const struct out_context *outc = o->priv;
+
+    UNUSED(out);
 
     filename = (char *)calloc(PATH_MAX, 1);
     if (filename == NULL) {
@@ -99,7 +101,7 @@ static const struct sr_option *get_options(void)
     return options;
 }
 
-static int cleanup(struct sat_output *o)
+static int cleanup(struct sr_output *o)
 {
     struct out_context *outc;
 
@@ -115,7 +117,7 @@ static int cleanup(struct sat_output *o)
     return EXIT_SUCCESS;
 }
 
-struct sat_output_module output_analog = {
+struct sr_output_module output_analog = {
     .id = "analog",
     .name = "analog",
     .desc = "one channel per file raw analog",

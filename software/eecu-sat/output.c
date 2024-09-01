@@ -1,3 +1,21 @@
+/*
+ * This file is part of the libsigrok project.
+ *
+ * Copyright (C) 2014 Bert Vermeulen <bert@biot.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -6,7 +24,7 @@
 #include "output_srzip.h"
 #include "output_calibrate_linear_3p.h"
 
-static const struct sat_output_module *output_module_list[] = {
+static const struct sr_output_module *output_module_list[] = {
     &output_analog,
     &output_srzip,
     &output_calibrate_linear_3p,
@@ -15,20 +33,16 @@ static const struct sat_output_module *output_module_list[] = {
 
 /**
  * Returns a NULL-terminated list of all available output modules.
- *
- * @since 0.4.0
  */
-const struct sat_output_module **sat_output_list(void)
+const struct sr_output_module **sat_output_list(void)
 {
     return output_module_list;
 }
 
 /**
  * Returns the specified output module's ID.
- *
- * @since 0.4.0
  */
-const char *sat_output_id_get(const struct sat_output_module *omod)
+const char *sat_output_id_get(const struct sr_output_module *omod)
 {
     if (!omod) {
         fprintf(stderr, "Invalid output module NULL!\n");
@@ -40,10 +54,8 @@ const char *sat_output_id_get(const struct sat_output_module *omod)
 
 /**
  * Returns the specified output module's name.
- *
- * @since 0.4.0
  */
-const char *sat_output_name_get(const struct sat_output_module *omod)
+const char *sat_output_name_get(const struct sr_output_module *omod)
 {
     if (!omod) {
         fprintf(stderr, "Invalid output module NULL!\n");
@@ -55,10 +67,8 @@ const char *sat_output_name_get(const struct sat_output_module *omod)
 
 /**
  * Returns the specified output module's description.
- *
- * @since 0.4.0
  */
-const char *sat_output_description_get(const struct sat_output_module *omod)
+const char *sat_output_description_get(const struct sr_output_module *omod)
 {
     if (!omod) {
         fprintf(stderr, "Invalid output module NULL!\n");
@@ -73,10 +83,8 @@ const char *sat_output_description_get(const struct sat_output_module *omod)
  * format, as a NULL terminated array, or returns a NULL pointer if there is
  * no preferred extension.
  * @note these are a suggestions only.
- *
- * @since 0.4.0
  */
-const char *const *sat_output_extensions_get(const struct sat_output_module *omod)
+const char *const *sat_output_extensions_get(const struct sr_output_module *omod)
 {
     if (!omod) {
         fprintf(stderr, "Invalid output module NULL!\n");
@@ -90,9 +98,8 @@ const char *const *sat_output_extensions_get(const struct sat_output_module *omo
  * Checks whether a given flag is set.
  *
  * @see sat_output_flag
- * @since 0.4.0
  */
-gboolean sat_output_test_flag(const struct sat_output_module *omod, uint64_t flag)
+gboolean sat_output_test_flag(const struct sr_output_module *omod, uint64_t flag)
 {
     return (flag & omod->flags);
 }
@@ -100,10 +107,8 @@ gboolean sat_output_test_flag(const struct sat_output_module *omod, uint64_t fla
 /**
  * Return the output module with the specified ID, or NULL if no module
  * with that id is found.
- *
- * @since 0.4.0
  */
-const struct sat_output_module *sat_output_find(char *id)
+const struct sr_output_module *sat_output_find(char *id)
 {
     int i;
 
@@ -121,10 +126,8 @@ const struct sat_output_module *sat_output_find(char *id)
  *
  * Each call to this function must be followed by a call to
  * sat_output_options_free().
- *
- * @since 0.4.0
  */
-const struct sr_option **sat_output_options_get(const struct sat_output_module *omod)
+const struct sr_option **sat_output_options_get(const struct sr_output_module *omod)
 {
     const struct sr_option *mod_opts, **opts;
     int size, i;
@@ -147,8 +150,6 @@ const struct sr_option **sat_output_options_get(const struct sat_output_module *
 /**
  * After a call to sat_output_options_get(), this function cleans up all
  * resources returned by that call.
- *
- * @since 0.4.0
  */
 void sat_output_options_free(const struct sr_option **options)
 {
@@ -180,10 +181,10 @@ void sat_output_options_free(const struct sr_option **options)
  * default value.
  *
  */
-const struct sat_output *sat_output_new(const struct sat_output_module *omod,
+const struct sr_output *sat_output_new(const struct sr_output_module *omod,
        GHashTable *options, const struct sr_dev_inst *sdi, const char *filename)
 {
-    struct sat_output *op;
+    struct sr_output *op;
     const struct sr_option *mod_opts;
     const GVariantType *gvt;
     GHashTable *new_opts;
@@ -191,7 +192,7 @@ const struct sat_output *sat_output_new(const struct sat_output_module *omod,
     gpointer key, value;
     int i;
 
-    op = g_malloc(sizeof(struct sat_output));
+    op = g_malloc(sizeof(struct sr_output));
     op->module = omod;
     op->sdi = sdi;
     op->filename = g_strdup(filename);
@@ -242,17 +243,15 @@ const struct sat_output *sat_output_new(const struct sat_output_module *omod,
 /**
  * Send a packet to the specified output instance.
  */
-int sat_output_send(const struct sat_output *o, const struct sr_datafeed_packet *packet)
+int sat_output_send(const struct sr_output *o, const struct sr_datafeed_packet *packet)
 {
-    return o->module->receive(o, packet);
+    return o->module->receive(o, packet, NULL);
 }
 
 /**
  * Free the specified output instance and all associated resources.
- *
- * @since 0.4.0
  */
-int sat_output_free(const struct sat_output *o)
+int sat_output_free(const struct sr_output *o)
 {
     int ret;
 
@@ -261,7 +260,7 @@ int sat_output_free(const struct sat_output *o)
 
     ret = SR_OK;
     if (o->module->cleanup)
-        ret = o->module->cleanup((struct sat_output *)o);
+        ret = o->module->cleanup((struct sr_output *)o);
     g_free((char *)o->filename);
     g_free((gpointer) o);
 

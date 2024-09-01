@@ -24,6 +24,117 @@
 #include "proj.h"
 #include "parsers.h"
 
+
+int parse_trigger_match(char c)
+{
+	int match;
+
+	if (c == '0')
+		match = SR_TRIGGER_ZERO;
+	else if (c == '1')
+		match = SR_TRIGGER_ONE;
+	else if (c == 'r')
+		match = SR_TRIGGER_RISING;
+	else if (c == 'f')
+		match = SR_TRIGGER_FALLING;
+	else if (c == 'e')
+		match = SR_TRIGGER_EDGE;
+	else if (c == 'o')
+		match = SR_TRIGGER_OVER;
+	else if (c == 'u')
+		match = SR_TRIGGER_UNDER;
+	else
+		match = 0;
+
+	return match;
+}
+
+int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
+		struct sr_trigger **trigger)
+{
+	gboolean error = true;
+	struct sr_channel *ch;
+	struct sr_trigger_stage *stage;
+	GVariant *gvar;
+	GSList *l, *channels;
+	gsize num_matches = 0;
+	gboolean found_match;
+	const int32_t *matches;
+	int32_t match;
+	unsigned int j;
+	int t, i;
+	char **tokens, *sep;
+	struct sr_dev_driver *driver;
+
+	driver = sr_dev_inst_driver_get(sdi);
+	channels = sr_dev_inst_channels_get(sdi);
+
+	if (maybe_config_list(driver, sdi, NULL, SR_CONF_TRIGGER_MATCH,
+			&gvar) != SR_OK) {
+		g_critical("Device doesn't support any triggers.");
+		return FALSE;
+	}
+	matches = g_variant_get_fixed_array(gvar, &num_matches, sizeof(int32_t));
+
+	*trigger = sr_trigger_new(NULL);
+	error = FALSE;
+	tokens = g_strsplit(s, ",", -1);
+	for (i = 0; tokens[i]; i++) {
+		if (!(sep = strchr(tokens[i], '='))) {
+			g_critical("Invalid trigger '%s'.", tokens[i]);
+			error = TRUE;
+			break;
+		}
+		*sep++ = 0;
+		ch = NULL;
+		for (l = channels; l; l = l->next) {
+			ch = l->data;
+			if (ch->enabled && !strcmp(ch->name, tokens[i]))
+				break;
+			ch = NULL;
+		}
+		if (!ch) {
+			g_critical("Invalid channel '%s'.", tokens[i]);
+			error = TRUE;
+			break;
+		}
+		for (t = 0; sep[t]; t++) {
+			if (!(match = parse_trigger_match(sep[t]))) {
+				g_critical("Invalid trigger match '%c'.", sep[t]);
+				error = TRUE;
+				break;
+			}
+			found_match = FALSE;
+			for (j = 0; j < num_matches; j++) {
+				if (matches[j] == match) {
+					found_match = TRUE;
+					break;
+				}
+			}
+			if (!found_match) {
+				g_critical("Trigger match '%c' not supported by device.", sep[t]);
+				error = TRUE;
+				break;
+			}
+			/* Make sure this ends up in the right stage, creating
+			 * them as needed. */
+			while (!(stage = g_slist_nth_data((*trigger)->stages, t)))
+				sr_trigger_stage_add(*trigger);
+			if (sr_trigger_match_add(stage, ch, match, 0) != SR_OK) {
+				error = TRUE;
+				break;
+			}
+		}
+	}
+	g_strfreev(tokens);
+	g_variant_unref(gvar);
+
+	if (error)
+		sr_trigger_free(*trigger);
+
+	return !error;
+}
+
 /**
  * Split an input text into a key and value respectively ('=' separator).
  *
@@ -234,5 +345,15 @@ GHashTable *generic_arg_to_opt(const struct sr_option **opts, GHashTable *genarg
     }
 
     return hash;
+}
+
+bool saleae_magic_is_present(uint8_t *data)
+{
+    // 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
+    static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
+
+    if (memcmp(data, saleae_magic, 8) == 0)
+        return true;
+    return false;
 }
 
