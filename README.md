@@ -14,7 +14,12 @@ a number of filters and buffers are used to protect the ADCs from transient spik
 ```
  source:       https://github.com/rodan/eecu-sat
  author:       Petre Rodan <2b4eda@subdimension.ro>
- license:      BSD
+ license:      GNU GPLv3
+
+ software architecture based on libsigrok and sigrok-cli
+ source:       https://sigrok.org
+ author:       Bert Vermeulen
+ license:      GNU GPLv3
 ```
 
 more images of the prototype in action are available [here](https://photos.app.goo.gl/Gay5FS8gsCTZkYcH9)
@@ -31,7 +36,7 @@ project directory structure
 
 ## eecu-sat software
 
-One might note the likeness of eecpu-sat compared to [sigrok-cli](https://sigrok.org/wiki/Sigrok-cli) and that is understandable. I would have preferred to simply patch libsigrok and sigrok-cli to support the functionality that was needed for this project, however things did not go that smoothly. AFAICT libsigrok assumes that all input signals formats are interlaced, which makes sense from an acquisition system standpoint - samples are usually read by a single thread by switching channels in a loop. so CH1\_sample, CH2\_sample ... CH16\_sample, CH1\_sample, CH2\_sample ... in a row. however Logic exports multiple files containing raw analog signals - one per channel. Quoting a libsigrok source file,
+The software's code is shaped around the [sigrok](https://sigrok.org) library which is a great open-source signal analysis suite. I would have preferred to simply patch libsigrok and sigrok-cli to support the functionality that was needed for this project, however things did not go that smoothly. AFAICT libsigrok assumes that all input signals formats are interlaced, which makes sense from an acquisition system standpoint - samples are usually read by a single thread by switching channels in a loop. so CH1\_sample, CH2\_sample ... CH16\_sample, CH1\_sample, CH2\_sample ... in a row. however Logic exports multiple files containing raw analog signals - one per channel. Quoting a libsigrok source file,
 
 ```
 Saleae Logic applications typically export one file per channel. The sigrok
@@ -42,7 +47,7 @@ Merging multiple exported channels into either another input file or a sigrok
 session is supposed to be done outside of this input module.
 ```
 
-I needed to completely rewrite sigrok-cli and use some libsigrok functions to provide a way to handle Logic's output.
+This is the reason why the code is basically a fork of sigrok-cli that contains my own input, output and transform modules that treat all samples in a non-interlaced manner.
 
 ### Build requirements
 
