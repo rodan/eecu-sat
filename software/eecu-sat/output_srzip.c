@@ -51,13 +51,13 @@ static int init(struct sr_output *o, GHashTable *options)
     outc->target_filename = (char *)calloc(PATH_MAX, 1);
     if (outc->target_filename == NULL) {
         errMsg("calloc error");
-        return EXIT_FAILURE;
+        return SR_ERR_MALLOC;
     }
 
     archive = zip_open(o->filename, ZIP_CREATE, NULL);
     if (!archive) {
         fprintf(stderr, "error: zip_open() has failed\n");
-        return EXIT_FAILURE;
+        return SR_ERR_IO;
     }
 
     src = zip_source_buffer(archive, "2", 1, 0);
@@ -65,30 +65,30 @@ static int init(struct sr_output *o, GHashTable *options)
         fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
         zip_source_free(src);
         zip_discard(archive);
-        return EXIT_FAILURE;
+        return SR_ERR_IO;
     }
 
     if (outc->metadata_file && (outc->metadata_file[0] != 0)) {
         metadata = zip_source_file(archive, outc->metadata_file, 0, -1);
         if (!metadata) {
             fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
-            return EXIT_FAILURE;
+            return SR_ERR_IO;
         }
         if (zip_file_add(archive, "metadata", metadata, ZIP_FL_ENC_UTF_8) < 0) {
             fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
             zip_source_free(metadata);
             zip_discard(archive);
-            return EXIT_FAILURE;
+            return SR_ERR_IO;
         }
     }
 
     if (zip_close(archive) < 0) {
         fprintf(stderr, "Error saving zipfile: %s", zip_strerror(archive));
         zip_discard(archive);
-        return EXIT_FAILURE;
+        return SR_ERR_IO;
     }
 
-    return EXIT_SUCCESS;
+    return SR_OK;
 }
 
 static int receive(const struct sr_output *o, const struct sr_datafeed_packet *pkt, GString **out)
@@ -103,7 +103,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     UNUSED(out);
 
     if (!(archive = zip_open(o->filename, 0, NULL)))
-        return EXIT_FAILURE;
+        return SR_ERR_IO;
 
     switch (pkt->type) {
     case SR_DF_META:
@@ -124,17 +124,17 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         fprintf(stderr, "Failed to add chunk: %s", zip_strerror(archive));
         zip_source_free(src);
         zip_discard(archive);
-        return EXIT_FAILURE;
+        return SR_ERR_IO;
     }
 
  cleanup:
     if (zip_close(archive) < 0) {
         fprintf(stderr, "Error saving session file: %s", zip_strerror(archive));
         zip_discard(archive);
-        return EXIT_FAILURE;
+        return SR_ERR_IO;
     }
 
-    return EXIT_SUCCESS;
+    return SR_OK;
 }
 
 static struct sr_option options[] = {
@@ -156,7 +156,7 @@ static int cleanup(struct sr_output *o)
     struct out_context *outc;
 
     if (o == NULL)
-        return EXIT_FAILURE;
+        return SR_ERR_BUG;
 
     if (o->priv) {
         outc = o->priv;
@@ -168,7 +168,7 @@ static int cleanup(struct sr_output *o)
         free(o->priv);
     }
 
-    return EXIT_SUCCESS;
+    return SR_OK;
 }
 
 struct sr_output_module output_srzip = {

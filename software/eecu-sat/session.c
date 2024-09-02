@@ -81,11 +81,11 @@ const struct sr_transform *setup_transform_module(const struct sr_dev_inst *sdi,
     fmtspec = g_hash_table_lookup(fmtargs, "sigrok_key");
     if (!fmtspec) {
         fprintf(stderr, "Invalid transform module.\n");
-        exit(EXIT_FAILURE);
+        exit(SR_ERR_ARG);
     }
     if (!(tmod = sat_transform_find(fmtspec))) {
         fprintf(stderr, "Unknown transform module '%s'.\n", fmtspec);
-        exit(EXIT_FAILURE);
+        exit(SR_ERR_ARG);
     }
     g_hash_table_remove(fmtargs, "sigrok_key");
     if ((options = sat_transform_options_get(tmod))) {
@@ -106,7 +106,7 @@ const struct sr_transform *setup_transform_module(const struct sr_dev_inst *sdi,
 
 int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 {
-    int ret = EXIT_SUCCESS;
+    int ret = SR_OK;
     const struct sr_output *o = NULL;
     const struct sr_transform *t = NULL;
     ch_data_t *ch_data_ptr;
@@ -130,36 +130,34 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 
     if (!opt->output_format) {
         fprintf(stderr, "output format not selected\n");
-        return EXIT_FAILURE;
+        return SR_ERR_ARG;
     }
 
     if (opt->output_file) {
         if (!(o = setup_output_format(sdi, opt->output_file, opt->output_format))) {
             fprintf(stderr, "Failed to initialize transform module.\n");
-            return EXIT_FAILURE;
+            return SR_ERR_ARG;
         }
     } else {
         fprintf(stderr, "output file not defined, exiting.\n");
-        return EXIT_FAILURE;
+        return SR_ERR_ARG;
     }
 
-#if 0
 	if (opt->triggers) {
 		if (!parse_triggerstring(sdi, opt->triggers, &trigger)) {
             fprintf(stderr, "Failed to initialize trigger module.\n");
-			return EXIT_FAILURE;
+			return SR_ERR_ARG;
 		}
 		//if (sr_session_trigger_set(session, trigger) != SR_OK) {
         //    fprintf(stderr, "Failed to initialize trigger module.\n");
-		//	return EXIT_FAILURE;
+		//	return SR_ERR;
 		//}
 	}
-#endif
 
     if (opt->transform_module) {
         if (!(t = setup_transform_module(sdi, opt->transform_module))) {
             fprintf(stderr, "Failed to initialize transform module.\n");
-            return EXIT_FAILURE;
+            return SR_ERR_ARG;
         }
         transform_initialized = 1;
     }
@@ -167,7 +165,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
     analog.data = (uint8_t *) calloc(CHUNK_SIZE, 1);
     if (!analog.data) {
         errMsg("during calloc");
-        ret = EXIT_FAILURE;
+        ret = SR_ERR_MALLOC;
         goto cleanup;
     }
 
@@ -180,7 +178,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 
         if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
             errMsg("opening input file");
-            ret = EXIT_FAILURE;
+            ret = SR_ERR_IO;
             goto cleanup;
         }
 
@@ -188,21 +186,21 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         if (read(fd, analog.data, 8) != 8) {
             errMsg("during read()");
             close(fd);
-            ret = EXIT_FAILURE;
+            ret = SR_ERR_IO;
             goto cleanup;
         }
         if (saleae_magic_is_present(analog.data)) {
             if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
                 errMsg("during lseek()");
                 close(fd);
-                ret = EXIT_FAILURE;
+                ret = SR_ERR_IO;
                 goto cleanup;
             }
         } else {
             if (lseek(fd, 0x0, SEEK_SET) < 0) {
                 errMsg("during lseek()");
                 close(fd);
-                ret = EXIT_FAILURE;
+                ret = SR_ERR_IO;
                 goto cleanup;
             }
         }
@@ -215,15 +213,21 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
                 pkt.type = SR_DF_FRAME_BEGIN;
                 if (transform_initialized)
                     t->module->receive(t, &pkt, &tpkt);
-                o->module->receive(o, &pkt, NULL);
+                if (o->module->receive(o, &pkt, NULL) != SR_OK) {
+                    goto cleanup;
+                }
             }
             pkt.type = SR_DF_ANALOG;
             analog.num_samples = read_len / sizeof(float);
             if (transform_initialized) {
                 t->module->receive(t, &pkt, &tpkt);
-                o->module->receive(o, tpkt, NULL);
+                if (o->module->receive(o, tpkt, NULL) != SR_OK) {
+                    goto cleanup;
+                }
             } else {
-                o->module->receive(o, &pkt, NULL);
+                if (o->module->receive(o, &pkt, NULL) != SR_OK) {
+                    goto cleanup;
+                }
             }
             j++;
         }

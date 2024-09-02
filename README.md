@@ -36,7 +36,7 @@ project directory structure
 
 ## eecu-sat software
 
-The software's code is shaped around the [sigrok](https://sigrok.org) library which is a great open-source signal analysis suite. I would have preferred to simply patch libsigrok and sigrok-cli to support the functionality that was needed for this project, however things did not go that smoothly. AFAICT libsigrok assumes that all input signals formats are interlaced, which makes sense from an acquisition system standpoint - samples are usually read by a single thread by switching channels in a loop. so CH1\_sample, CH2\_sample ... CH16\_sample, CH1\_sample, CH2\_sample ... in a row. however Logic exports multiple files containing raw analog signals - one per channel. Quoting a libsigrok source file,
+The software's code is shaped around the [sigrok](https://sigrok.org) library which is a great open-source signal analysis suite. I would have preferred to simply patch libsigrok and sigrok-cli to support the functionality that was needed for this project, however things did not go that smoothly. AFAICT libsigrok assumes that all input signals formats are interlaced, which makes sense from an acquisition system standpoint - samples are usually read by a single thread by switching channels in a loop. so CH1\_sample, CH2\_sample ... CH16\_sample, CH1\_sample, CH2\_sample ... in a row. Also it only supports single-file inputs. Quoting a libsigrok source file,
 
 ```
 Saleae Logic applications typically export one file per channel. The sigrok
@@ -66,7 +66,6 @@ make
 
 ### Done
 
-- [x] cover project with coverity static scan
 - [x] convert Logic exported raw analog signals into srzip files that can be loaded in pulseview
 - [x] relabeling capability of channels when seen in pulseview
 - [x] 3-point calibration of all analog channels

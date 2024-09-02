@@ -149,9 +149,10 @@ static int parse_options(int argc, char **argv)
         opt.input_prefix = opt_default_input_prefix;
     }
 
-    return EXIT_SUCCESS;
+    return SR_OK;
 }
 
+#if 0
 int maybe_config_set(struct sr_dev_driver *driver,
 		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
 		uint32_t key, GVariant *gvar)
@@ -173,6 +174,7 @@ int maybe_config_list(struct sr_dev_driver *driver,
 
 	return SR_ERR_NA;
 }
+#endif
 
 int main(int argc, char **argv)
 {
@@ -188,13 +190,13 @@ int main(int argc, char **argv)
     FILE *fp;
     ch_data_t *ch_data_ptr;
     ssize_t file_size_compare = -1;
-    int ret = EXIT_SUCCESS;
+    int ret = SR_OK;
     struct sr_dev_inst sdi = { 0 };
     struct dev_frame frame = { 0 };
-    GSList *l;
+    GSList *l, *channels = NULL;
 
     if (parse_options(argc, argv)) {
-        return EXIT_FAILURE;
+        return SR_ERR_ARG;
     }
 
     _input_dirname = strdup(opt.input_prefix);
@@ -220,7 +222,7 @@ int main(int argc, char **argv)
                 ch_data_ptr = calloc(1, sizeof(struct ch_data));
                 if (!ch_data_ptr) {
                     errMsg("during calloc");
-                    ret = EXIT_FAILURE;
+                    ret = SR_ERR_MALLOC;
                     goto cleanup;
                 }
 
@@ -228,7 +230,7 @@ int main(int argc, char **argv)
                 ch_data_ptr->input_file_name = (char *)calloc(file_name_len + 3, sizeof(char));
                 if (!ch_data_ptr->input_file_name) {
                     errMsg("during calloc");
-                    ret = EXIT_FAILURE;
+                    ret = SR_ERR_MALLOC;
                     goto cleanup;
                 }
                 snprintf(ch_data_ptr->input_file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
@@ -237,7 +239,7 @@ int main(int argc, char **argv)
                 // get file size
                 if ((fp = fopen(ch_data_ptr->input_file_name, "r")) == NULL) {
                     errMsg("opening input file");
-                    ret = EXIT_FAILURE;
+                    ret = SR_ERR_ARG;
                     goto cleanup;
                 }
                 fseek(fp, 0L, SEEK_END);
@@ -249,7 +251,7 @@ int main(int argc, char **argv)
                     fprintf(stderr, "error: input files do not have the exact same size\n");
                     fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->input_file_name,
                             ch_data_ptr->input_file_size, file_size_compare);
-                    ret = EXIT_FAILURE;
+                    ret = SR_ERR_ARG;
                     goto cleanup;
                 }
                 sdi.channels = g_slist_append(sdi.channels, ch_data_ptr);
@@ -260,16 +262,17 @@ int main(int argc, char **argv)
     if (!channel_total) {
         fprintf(stderr, "error: no valid input channels found\n");
         show_usage();
-        return EXIT_FAILURE;
+        return SR_ERR_ARG;
     }
 
     ret = run_session(&sdi, &opt);
 
 #ifdef CONFIG_DEBUG
-    //for (l = sdi.channels; l; l = l->next) {
-    //    ch_data_ptr = l->data;
-    //    printf("file in list %s\n", ch_data_ptr->input_file_name);
-    //}
+    channels = sr_dev_inst_channels_get(&sdi);
+    for (l = channels; l; l = l->next) {
+        ch_data_ptr = l->data;
+        printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
+    }
 #endif
 
  cleanup:
@@ -277,8 +280,8 @@ int main(int argc, char **argv)
         free(namelist[i]);
     }
     free(namelist);
-    if (sdi.channels) {
-        for (l = sdi.channels; l; l = l->next) {
+    if (channels) {
+        for (l = channels; l; l = l->next) {
             ch_data_ptr = l->data;
             if (ch_data_ptr->input_file_name)
                 free(ch_data_ptr->input_file_name);
@@ -286,7 +289,7 @@ int main(int argc, char **argv)
                 free(ch_data_ptr->output_file_name);
             free(l->data);
         }
-        g_slist_free(sdi.channels);
+        g_slist_free(channels);
     }
     free(_input_dirname);
     free(_input_basename);

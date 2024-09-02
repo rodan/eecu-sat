@@ -53,28 +53,31 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
 		struct sr_trigger **trigger)
 {
 	gboolean error = true;
-	struct sr_channel *ch;
-	struct sr_trigger_stage *stage;
-	GVariant *gvar;
+	//struct sr_channel *ch;
+    ch_data_t *ch;
+	//struct sr_trigger_stage *stage;
+	//GVariant *gvar;
 	GSList *l, *channels;
-	gsize num_matches = 0;
-	gboolean found_match;
-	const int32_t *matches;
+	//gsize num_matches = 0;
+	//gboolean found_match;
+	//const int32_t *matches;
 	int32_t match;
-	unsigned int j;
+	//unsigned int j;
 	int t, i;
 	char **tokens, *sep;
-	struct sr_dev_driver *driver;
+	//struct sr_dev_driver *driver;
 
-	driver = sr_dev_inst_driver_get(sdi);
+	//driver = sr_dev_inst_driver_get(sdi);
 	channels = sr_dev_inst_channels_get(sdi);
 
+#if 0
 	if (maybe_config_list(driver, sdi, NULL, SR_CONF_TRIGGER_MATCH,
 			&gvar) != SR_OK) {
 		g_critical("Device doesn't support any triggers.");
 		return FALSE;
 	}
 	matches = g_variant_get_fixed_array(gvar, &num_matches, sizeof(int32_t));
+#endif
 
 	*trigger = sr_trigger_new(NULL);
 	error = FALSE;
@@ -89,8 +92,10 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
 		ch = NULL;
 		for (l = channels; l; l = l->next) {
 			ch = l->data;
-			if (ch->enabled && !strcmp(ch->name, tokens[i]))
-				break;
+            if (ch->id == atoi(tokens[i]))
+                break;
+			//if (ch->enabled && !strcmp(ch->id, tokens[i]))
+			//	break;
 			ch = NULL;
 		}
 		if (!ch) {
@@ -99,11 +104,13 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
 			break;
 		}
 		for (t = 0; sep[t]; t++) {
+            printf("sep %s\n", sep);
 			if (!(match = parse_trigger_match(sep[t]))) {
 				g_critical("Invalid trigger match '%c'.", sep[t]);
 				error = TRUE;
 				break;
 			}
+#if 0
 			found_match = FALSE;
 			for (j = 0; j < num_matches; j++) {
 				if (matches[j] == match) {
@@ -124,10 +131,11 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
 				error = TRUE;
 				break;
 			}
+#endif
 		}
 	}
 	g_strfreev(tokens);
-	g_variant_unref(gvar);
+	//g_variant_unref(gvar);
 
 	if (error)
 		sr_trigger_free(*trigger);

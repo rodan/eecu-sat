@@ -46,7 +46,7 @@ static int init(struct sr_transform *t, GHashTable *options)
     /* Options */
     ctx->calib_file = g_strdup(g_variant_get_string(g_hash_table_lookup(options, "calib_file"), NULL));
     
-    if ((calib_read_params_from_file(ctx->calib_file, &ctx->globals, CALIB_INI_GLOBALS)) != EXIT_SUCCESS) {
+    if ((calib_read_params_from_file(ctx->calib_file, &ctx->globals, CALIB_INI_GLOBALS)) != SR_OK) {
         fprintf(stderr, "error during calib_read_params_from_file()\n");
         return SR_ERR_ARG;
     }
@@ -77,7 +77,7 @@ static int receive(const struct sr_transform *t,
     switch (packet_in->type) {
     case SR_DF_FRAME_BEGIN:
         ctx->channel.id = frame->ch;
-        if ((calib_read_params_from_file(ctx->calib_file, &ctx->channel, CALIB_INI_CHANNEL)) != EXIT_SUCCESS) {
+        if ((calib_read_params_from_file(ctx->calib_file, &ctx->channel, CALIB_INI_CHANNEL)) != SR_OK) {
             fprintf(stderr, "error during calib_read_params_from_file()\n");
             return SR_ERR_ARG;
         }

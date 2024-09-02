@@ -93,21 +93,21 @@ static int calib_inih_channel_handler(void* data, const char* section, const cha
 
 int calib_read_params_from_file(char *file_name, void *ctx, uint8_t flags)
 {
-    int ret = EXIT_SUCCESS;
+    int ret = SR_OK;
 
     if (flags == CALIB_INI_GLOBALS) {
         if (ini_parse(file_name, calib_inih_globals_handler, ctx) < 0) {
             fprintf(stderr, "error: can't load calibration file\n");
-            ret = EXIT_FAILURE;
+            ret = SR_ERR_ARG;
         }
     } else if (flags == CALIB_INI_CHANNEL) {
         if (ini_parse(file_name, calib_inih_channel_handler, ctx) < 0) {
             fprintf(stderr, "error: can't load calibration file\n");
-            ret = EXIT_FAILURE;
+            ret = SR_ERR_ARG;
         }
     } else {
         fprintf(stderr, "improper use of 'flags' in calib_read_params_from_file()\n");
-        ret = EXIT_FAILURE;
+        ret = SR_ERR_ARG;
     }
 
     return ret;
@@ -205,7 +205,7 @@ int calib_init_from_buffer(float *buffer, ssize_t num_samples, calib_context_t *
 
     if (c->checklist != (CALIB_P0_DONE | CALIB_P1_DONE | CALIB_P2_DONE)) {
         fprintf(stderr, "calibration error: cannot detect stable signals\n");
-        ret = EXIT_FAILURE;
+        ret = SR_ERR_DATA;
         goto cleanup;
     }
 
@@ -220,7 +220,7 @@ int calib_init_from_buffer(float *buffer, ssize_t num_samples, calib_context_t *
     cco = (char *) calloc(4*1024, sizeof(char));
     if (!cco) {
         errMsg("during calloc");
-        ret = EXIT_FAILURE;
+        ret = SR_ERR_MALLOC;
         goto cleanup;
     }
 

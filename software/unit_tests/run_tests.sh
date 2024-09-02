@@ -7,6 +7,7 @@ export prefix=$(dirname $(realpath $0))
 export sample_dir="${prefix}/sample_files"
 tmp_dir='/dev/shm/eecpu-sat'
 log_file="${tmp_dir}/log"
+keep_output='false'
 
 GOOD=$'\e[32;01m'
 WARN=$'\e[33;01m'
@@ -49,7 +50,9 @@ run_test() {
     ret=$?
     popd 1>/dev/null 2>&1
     eend "${ret}"
-    [ "${ret}" = 0 ] && rm -rf "${test_tmp_dir}"
+    "${keep_output}" || {
+        [ "${ret}" = 0 ] && rm -rf "${test_tmp_dir}"
+    }
     return "${ret}"
 }
 

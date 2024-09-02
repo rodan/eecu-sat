@@ -45,19 +45,19 @@ static int init(struct sr_output *o, GHashTable *options)
     outc = (struct out_context *)calloc(1, sizeof(struct out_context));
     if (outc == NULL) {
         errMsg("calloc error");
-        return EXIT_FAILURE;
+        return SR_ERR_MALLOC;
     }
     o->priv = outc;
 
     /* Options */
     outc->calib_file = g_strdup(g_variant_get_string(g_hash_table_lookup(options, "calib_file"), NULL));
 
-    if ((calib_read_params_from_file(outc->calib_file, &outc->cal.globals, CALIB_INI_GLOBALS)) != EXIT_SUCCESS) {
+    if ((calib_read_params_from_file(outc->calib_file, &outc->cal.globals, CALIB_INI_GLOBALS)) != SR_OK) {
         fprintf(stderr, "error during calib_read_params_from_file()\n");
         return SR_ERR_ARG;
     }
 
-    return EXIT_SUCCESS;
+    return SR_OK;
 }
 
 static int receive(const struct sr_output *o, const struct sr_datafeed_packet *pkt, GString **out)
@@ -130,7 +130,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
 
         if (write(ifd, cco, strlen(cco)) != strlen(cco)) {
             errMsg("writing to ini file");
-            ret = EXIT_FAILURE;
+            ret = SR_ERR_IO;
             goto cleanup;
         }
         break;
@@ -166,7 +166,7 @@ static int cleanup(struct sr_output *o)
     struct out_context *outc;
 
     if (o == NULL)
-        return EXIT_FAILURE;
+        return SR_ERR_BUG;
 
     if (o->priv) {
         outc = o->priv;
@@ -176,7 +176,7 @@ static int cleanup(struct sr_output *o)
         o->priv = NULL;
     }
 
-    return EXIT_SUCCESS;
+    return SR_OK;
 }
 
 struct sr_output_module output_calibrate_linear_3p = {
