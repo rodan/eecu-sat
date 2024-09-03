@@ -43,6 +43,7 @@
 #include "transform.h"
 #include "calib.h"
 #include "parsers.h"
+#include "trigger.h"
 #include "session.h"
 
 // program arguments
@@ -151,30 +152,6 @@ static int parse_options(int argc, char **argv)
 
     return SR_OK;
 }
-
-#if 0
-int maybe_config_set(struct sr_dev_driver *driver,
-		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
-		uint32_t key, GVariant *gvar)
-{
-	(void)driver;
-
-	if (sr_dev_config_capabilities_list(sdi, cg, key) & SR_CONF_SET)
-		return sr_config_set(sdi, cg, key, gvar);
-
-	return SR_ERR_NA;
-}
-
-int maybe_config_list(struct sr_dev_driver *driver,
-		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
-		uint32_t key, GVariant **gvar)
-{
-	if (sr_dev_config_capabilities_list(sdi, cg, key) & SR_CONF_LIST)
-		return sr_config_list(driver, sdi, cg, key, gvar);
-
-	return SR_ERR_NA;
-}
-#endif
 
 int main(int argc, char **argv)
 {
@@ -285,8 +262,8 @@ int main(int argc, char **argv)
             ch_data_ptr = l->data;
             if (ch_data_ptr->input_file_name)
                 free(ch_data_ptr->input_file_name);
-            if (ch_data_ptr->output_file_name)
-                free(ch_data_ptr->output_file_name);
+            if (ch_data_ptr->t)
+                sat_trigger_free(ch_data_ptr->t);
             free(l->data);
         }
         g_slist_free(channels);

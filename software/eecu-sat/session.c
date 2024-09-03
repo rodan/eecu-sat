@@ -119,7 +119,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
     struct sr_analog_encoding encoding = { 0 };
     struct sr_analog_meaning meaning = { 0 };
     struct sr_analog_spec spec = { 0 };
-    struct sr_trigger *trigger = NULL;
+    struct sat_trigger *trigger = NULL;
     bool transform_initialized = 0;
     GSList *l;
     struct dev_frame *frame = sdi->priv;

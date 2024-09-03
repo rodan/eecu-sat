@@ -22,125 +22,112 @@
 #include <stdint.h>
 #include <string.h>
 #include "proj.h"
+#include "trigger.h"
 #include "parsers.h"
 
+bool saleae_magic_is_present(uint8_t *data)
+{
+    // 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
+    static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
+
+    if (memcmp(data, saleae_magic, 8) == 0)
+        return true;
+    return false;
+}
 
 int parse_trigger_match(char c)
 {
-	int match;
+    int match;
 
-	if (c == '0')
-		match = SR_TRIGGER_ZERO;
-	else if (c == '1')
-		match = SR_TRIGGER_ONE;
-	else if (c == 'r')
-		match = SR_TRIGGER_RISING;
-	else if (c == 'f')
-		match = SR_TRIGGER_FALLING;
-	else if (c == 'e')
-		match = SR_TRIGGER_EDGE;
-	else if (c == 'o')
-		match = SR_TRIGGER_OVER;
-	else if (c == 'u')
-		match = SR_TRIGGER_UNDER;
-	else
-		match = 0;
+    if (c == '0')
+        match = SR_TRIGGER_ZERO;
+    else if (c == '1')
+        match = SR_TRIGGER_ONE;
+    else if (c == 'r')
+        match = SR_TRIGGER_RISING;
+    else if (c == 'f')
+        match = SR_TRIGGER_FALLING;
+    else if (c == 'e')
+        match = SR_TRIGGER_EDGE;
+    else if (c == 'o')
+        match = SR_TRIGGER_OVER;
+    else if (c == 'u')
+        match = SR_TRIGGER_UNDER;
+    else
+        match = 0;
 
-	return match;
+    return match;
 }
 
+// ch=FILENAME:name=STR:type=CHAR:level=FLOAT:nth=INT
 int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
-		struct sr_trigger **trigger)
+        struct sat_trigger **trigger)
 {
-	gboolean error = true;
-	//struct sr_channel *ch;
+    gboolean error = true;
     ch_data_t *ch;
-	//struct sr_trigger_stage *stage;
-	//GVariant *gvar;
-	GSList *l, *channels;
-	//gsize num_matches = 0;
-	//gboolean found_match;
-	//const int32_t *matches;
-	int32_t match;
-	//unsigned int j;
-	int t, i;
-	char **tokens, *sep;
-	//struct sr_dev_driver *driver;
+    GSList *l, *channels;
+    int i;
+    char **tokens, *sep;
+    char *val;
+    uint16_t id=0;
 
-	//driver = sr_dev_inst_driver_get(sdi);
-	channels = sr_dev_inst_channels_get(sdi);
+    channels = sr_dev_inst_channels_get(sdi);
 
-#if 0
-	if (maybe_config_list(driver, sdi, NULL, SR_CONF_TRIGGER_MATCH,
-			&gvar) != SR_OK) {
-		g_critical("Device doesn't support any triggers.");
-		return FALSE;
-	}
-	matches = g_variant_get_fixed_array(gvar, &num_matches, sizeof(int32_t));
-#endif
-
-	*trigger = sr_trigger_new(NULL);
-	error = FALSE;
-	tokens = g_strsplit(s, ",", -1);
-	for (i = 0; tokens[i]; i++) {
-		if (!(sep = strchr(tokens[i], '='))) {
-			g_critical("Invalid trigger '%s'.", tokens[i]);
-			error = TRUE;
-			break;
-		}
-		*sep++ = 0;
-		ch = NULL;
-		for (l = channels; l; l = l->next) {
-			ch = l->data;
-            if (ch->id == atoi(tokens[i]))
+    *trigger = sat_trigger_new(NULL);
+    (*trigger)->id = id;
+    (*trigger)->nth = 1;
+    error = FALSE;
+    tokens = g_strsplit(s, ":", -1);
+    for (i = 0; tokens[i]; i++) {
+        if (!(sep = strchr(tokens[i], '='))) {
+            fprintf(stderr, "Invalid trigger '%s'.", tokens[i]);
+            error = TRUE;
+            break;
+        }
+        if (strstr(tokens[i], "ch=") == tokens[i]) {
+            val = tokens[i] + strlen("ch=");
+            ch = NULL;
+            for (l = channels; l; l = l->next) {
+                ch = l->data;
+                if (strstr(ch->input_file_name, val)) {
+                    (*trigger)->ch_id = ch->id;
+                    break;
+                }
+                ch = NULL;
+            }
+            if (!ch) {
+                fprintf(stderr, "Invalid channel '%s'.", tokens[i]);
+                error = TRUE;
                 break;
-			//if (ch->enabled && !strcmp(ch->id, tokens[i]))
-			//	break;
-			ch = NULL;
-		}
-		if (!ch) {
-			g_critical("Invalid channel '%s'.", tokens[i]);
-			error = TRUE;
-			break;
-		}
-		for (t = 0; sep[t]; t++) {
-            printf("sep %s\n", sep);
-			if (!(match = parse_trigger_match(sep[t]))) {
-				g_critical("Invalid trigger match '%c'.", sep[t]);
-				error = TRUE;
-				break;
-			}
-#if 0
-			found_match = FALSE;
-			for (j = 0; j < num_matches; j++) {
-				if (matches[j] == match) {
-					found_match = TRUE;
-					break;
-				}
-			}
-			if (!found_match) {
-				g_critical("Trigger match '%c' not supported by device.", sep[t]);
-				error = TRUE;
-				break;
-			}
-			/* Make sure this ends up in the right stage, creating
-			 * them as needed. */
-			while (!(stage = g_slist_nth_data((*trigger)->stages, t)))
-				sr_trigger_stage_add(*trigger);
-			if (sr_trigger_match_add(stage, ch, match, 0) != SR_OK) {
-				error = TRUE;
-				break;
-			}
-#endif
-		}
-	}
-	g_strfreev(tokens);
-	//g_variant_unref(gvar);
+            }
+        } else if (strstr(tokens[i], "name=") == tokens[i]) {
+            (*trigger)->name = g_strdup(tokens[i] + strlen("name="));
+        } else if (strstr(tokens[i], "type=") == tokens[i]) {
+            val = tokens[i] + strlen("type=");
+            (*trigger)->type = parse_trigger_match(val[0]);
+            if (!(*trigger)->type) {
+                fprintf(stderr, "Invalid trigger type '%s'.", tokens[i]);
+                error = TRUE;
+                break;
+            }
+        } else if (strstr(tokens[i], "level=") == tokens[i]) {
+            (*trigger)->level = atof(tokens[i] + strlen("level="));
+        } else if (strstr(tokens[i], "nth=") == tokens[i]) {
+            (*trigger)->nth = atoi(tokens[i] + strlen("nth="));
+        } else {
+            fprintf(stderr, "Invalid trigger '%s'.", tokens[i]);
+            error = TRUE;
+            break;
+        }
+    }
+    g_strfreev(tokens);
 
-	if (error)
-		sr_trigger_free(*trigger);
+    printf("trigger id=%d name=%s type=%d level=%f nth=%ld\n", (*trigger)->id, (*trigger)->name, (*trigger)->type, (*trigger)->level, (*trigger)->nth);
 
-	return !error;
+    if (error)
+        sat_trigger_free(*trigger);
+
+    return !error;
 }
 
 /**
@@ -254,53 +241,53 @@ GHashTable *parse_generic_arg(const char *arg, gboolean sep_first, const char *k
 
 GSList *check_unknown_keys(const struct sr_option **avail, GHashTable *used)
 {
-	GSList *unknown;
-	GHashTableIter iter;
-	void *key;
-	const char *used_id;
-	size_t avail_idx;
-	const char *avail_id, *found_id;
+    GSList *unknown;
+    GHashTableIter iter;
+    void *key;
+    const char *used_id;
+    size_t avail_idx;
+    const char *avail_id, *found_id;
 
-	/* Collect a list of used but not available keywords. */
-	unknown = NULL;
-	g_hash_table_iter_init(&iter, used);
-	while (g_hash_table_iter_next(&iter, &key, NULL)) {
-		used_id = key;
-		found_id = NULL;
-		for (avail_idx = 0; avail[avail_idx] && avail[avail_idx]->id; avail_idx++) {
-			avail_id = avail[avail_idx]->id;
-			if (strcmp(avail_id, used_id) == 0) {
-				found_id = avail_id;
-				break;
-			}
-		}
-		if (!found_id)
-			unknown = g_slist_append(unknown, g_strdup(used_id));
-	}
+    /* Collect a list of used but not available keywords. */
+    unknown = NULL;
+    g_hash_table_iter_init(&iter, used);
+    while (g_hash_table_iter_next(&iter, &key, NULL)) {
+        used_id = key;
+        found_id = NULL;
+        for (avail_idx = 0; avail[avail_idx] && avail[avail_idx]->id; avail_idx++) {
+            avail_id = avail[avail_idx]->id;
+            if (strcmp(avail_id, used_id) == 0) {
+                found_id = avail_id;
+                break;
+            }
+        }
+        if (!found_id)
+            unknown = g_slist_append(unknown, g_strdup(used_id));
+    }
 
-	/* Return the list of unknown keywords, or NULL if empty. */
-	return unknown;
+    /* Return the list of unknown keywords, or NULL if empty. */
+    return unknown;
 }
 
 gboolean warn_unknown_keys(const struct sr_option **avail, GHashTable *used,
-	const char *caption)
+    const char *caption)
 {
-	GSList *unknown, *l;
-	gboolean had_unknown;
-	const char *s;
+    GSList *unknown, *l;
+    gboolean had_unknown;
+    const char *s;
 
-	if (!caption || !*caption)
-		caption = "Unknown keyword";
+    if (!caption || !*caption)
+        caption = "Unknown keyword";
 
-	unknown = check_unknown_keys(avail, used);
-	had_unknown = unknown != NULL;
-	for (l = unknown; l; l = l->next) {
-		s = l->data;
-		g_warning("%s: %s.", caption, s);
-	}
-	g_slist_free_full(unknown, g_free);
+    unknown = check_unknown_keys(avail, used);
+    had_unknown = unknown != NULL;
+    for (l = unknown; l; l = l->next) {
+        s = l->data;
+        g_warning("%s: %s.", caption, s);
+    }
+    g_slist_free_full(unknown, g_free);
 
-	return had_unknown;
+    return had_unknown;
 }
 
 GHashTable *generic_arg_to_opt(const struct sr_option **opts, GHashTable *genargs)
@@ -354,14 +341,3 @@ GHashTable *generic_arg_to_opt(const struct sr_option **opts, GHashTable *genarg
 
     return hash;
 }
-
-bool saleae_magic_is_present(uint8_t *data)
-{
-    // 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
-    static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
-
-    if (memcmp(data, saleae_magic, 8) == 0)
-        return true;
-    return false;
-}
-

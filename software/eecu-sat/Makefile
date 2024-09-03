@@ -12,7 +12,7 @@ INIH_OBJ  = $(patsubst ${INIH_DIR}/%.c,build/lib/inih/%.o,${INIH_SRC})
 LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ)
 
 INCLUDES  := -I ./ -I $(TLPI_DIR) -I $(INIH_DIR)
-LOCAL_SRC_C := main.c session.c parsers.c output.c output_analog.c output_srzip.c output_calibrate_linear_3p.c calib.c transform.c transform_calibrate_linear_3p.c
+LOCAL_SRC_C := main.c session.c parsers.c output.c output_analog.c output_srzip.c output_calibrate_linear_3p.c calib.c transform.c transform_calibrate_linear_3p.c trigger.c
 SRC        = $(LOCAL_SRC_C) $(TLPI_SRC) $(INIH_SRC)
 EXOUTPUT   = $(PROJ)
 

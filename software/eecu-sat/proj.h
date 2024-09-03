@@ -23,11 +23,19 @@ struct cmdline_opt {
     uint32_t action;
 };
 
-struct ch_data {
-    char *input_file_name;
-    char *output_file_name;
-    //char *channel_name;
+struct sat_trigger {
     uint16_t id;
+    uint16_t ch_id;
+    char *name;
+    uint16_t type;
+    float level;
+    ssize_t nth;
+};
+
+struct ch_data {
+    uint16_t id;
+    char *input_file_name;
+    struct sat_trigger *t;
     ssize_t input_file_size;
 };
 typedef struct ch_data ch_data_t;
