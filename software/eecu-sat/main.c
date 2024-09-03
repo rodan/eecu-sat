@@ -262,8 +262,8 @@ int main(int argc, char **argv)
             ch_data_ptr = l->data;
             if (ch_data_ptr->input_file_name)
                 free(ch_data_ptr->input_file_name);
-            if (ch_data_ptr->t)
-                sat_trigger_free(ch_data_ptr->t);
+            if (ch_data_ptr->trigger)
+                sat_trigger_free(ch_data_ptr->trigger);
             free(l->data);
         }
         g_slist_free(channels);

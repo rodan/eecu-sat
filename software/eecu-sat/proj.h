@@ -25,17 +25,18 @@ struct cmdline_opt {
 
 struct sat_trigger {
     uint16_t id;
-    uint16_t ch_id;
     char *name;
     uint16_t type;
     float level;
     ssize_t nth;
+    GSList *matches;
+    void *priv;
 };
 
 struct ch_data {
     uint16_t id;
     char *input_file_name;
-    struct sat_trigger *t;
+    struct sat_trigger *trigger;
     ssize_t input_file_size;
 };
 typedef struct ch_data ch_data_t;
@@ -49,12 +50,5 @@ struct dev_frame {
     uint16_t ch;
     uint16_t chunk;
 };
-
-int maybe_config_set(struct sr_dev_driver *driver,
-		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
-		uint32_t key, GVariant *gvar);
-int maybe_config_list(struct sr_dev_driver *driver,
-		const struct sr_dev_inst *sdi, struct sr_channel_group *cg,
-		uint32_t key, GVariant **gvar);
 
 #endif

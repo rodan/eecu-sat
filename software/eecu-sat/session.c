@@ -28,6 +28,7 @@
 #include "parsers.h"
 #include "output.h"
 #include "transform.h"
+#include "trigger.h"
 
 const struct sr_output *setup_output_format(const struct sr_dev_inst *sdi, char *opt_output_file, char *opt_output_format)
 {
@@ -148,10 +149,6 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             fprintf(stderr, "Failed to initialize trigger module.\n");
 			return SR_ERR_ARG;
 		}
-		//if (sr_session_trigger_set(session, trigger) != SR_OK) {
-        //    fprintf(stderr, "Failed to initialize trigger module.\n");
-		//	return SR_ERR;
-		//}
 	}
 
     if (opt->transform_module) {
@@ -172,6 +169,54 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
     i = 0;
     pkt.payload = &analog;
 
+    // send data to trigger module
+    if (trigger) {
+        for (l = sdi->channels; l; l = l->next) {
+            ch_data_ptr = l->data;
+            if (ch_data_ptr->trigger) {
+                if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
+                    errMsg("opening input file");
+                    ret = SR_ERR_IO;
+                    goto cleanup;
+                }
+
+                // skip saleae header if present
+                if (read(fd, analog.data, 8) != 8) {
+                    errMsg("during read()");
+                    close(fd);
+                    ret = SR_ERR_IO;
+                    goto cleanup;
+                }
+                if (saleae_magic_is_present(analog.data)) {
+                    if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
+                        errMsg("during lseek()");
+                        close(fd);
+                        ret = SR_ERR_IO;
+                        goto cleanup;
+                    }
+                } else {
+                    if (lseek(fd, 0x0, SEEK_SET) < 0) {
+                        errMsg("during lseek()");
+                        close(fd);
+                        ret = SR_ERR_IO;
+                        goto cleanup;
+                    }
+                }
+
+                while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
+                    pkt.type = SR_DF_ANALOG;
+                    analog.num_samples = read_len / sizeof(float);
+                    sat_trigger_receive(ch_data_ptr->trigger, &pkt);
+                }
+                close(fd);
+
+                sat_trigger_show(trigger);
+            }
+        }
+        //goto cleanup;
+    }
+
+    // send data to transform and output modules
     for (l = sdi->channels; l; l = l->next) {
         ch_data_ptr = l->data;
         i++;

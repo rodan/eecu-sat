@@ -25,7 +25,7 @@ e1f19948fa609f538bd2f26fe94ff576311cd3edd487f43f81d23efab08faa5c  analog-1-9-1
 d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35  version
 EOF
 
-./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./calibrated.sr --output-format srzip:metadata_file=${sample_dir}/metadata_16ch --transform-module calibrate_linear_3p:calib_file=${sample_dir}/calib_reference.ini
+./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./calibrated.sr --output-format "srzip:metadata_file=${sample_dir}/metadata_16ch" --transform-module "calibrate_linear_3p:calib_file=${sample_dir}/calib_reference.ini"
 ret=$?
 
 unzip calibrated.sr
