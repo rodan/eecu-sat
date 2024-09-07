@@ -59,7 +59,24 @@ int parse_trigger_match(char c)
     return match;
 }
 
-// ch=FILENAME:name=STR:type=CHAR:level=FLOAT:nth=INT
+/*
+ * ch=FILENAME:name=STR:type=CHAR:level=FLOAT:nth=INT:a=INT:b=INT
+ * ch - the channel filename this trigger follows (basename !)
+ * name - a name for this trigger, can be NULL
+ * type - for digital signals it can be  (NOT IMPLEMENTED YET)
+ *           0 - low level trigger
+ *           1 - high signal trigger
+ *           r - rising signal
+ *           f - falling signal
+ *           e - edge triggerring (either rising or falling)
+ *      - for analog signals
+ *           o - signal rising above the level defined in 'level'
+ *           u - signal falling below the level defined in 'level'
+ * level - triger voltage used by 'o' and 'u' analog triggering - see above
+ * nth - stop after trigger was activated nth times
+ * a INT - crop signal INT samples after nth trigger
+ * b INT - crop signal INT samples before nth trigger
+ */
 int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
         struct sat_trigger **trigger)
 {
@@ -70,7 +87,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
     char **tokens, *sep;
     char *val;
     uint16_t id=0;
-    struct sat_trigger **found_trigger = NULL;
+    //struct sat_trigger **found_trigger = NULL;
 
     channels = sr_dev_inst_channels_get(sdi);
 
@@ -92,7 +109,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
                 ch = l->data;
                 if (strstr(ch->input_file_name, val)) {
                     ch->trigger = *trigger;
-                    found_trigger = &ch->trigger;
+                    //found_trigger = &ch->trigger;
                     break;
                 }
                 ch = NULL;
@@ -116,6 +133,10 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
             (*trigger)->level = atof(tokens[i] + strlen("level="));
         } else if (strstr(tokens[i], "nth=") == tokens[i]) {
             (*trigger)->nth = atoi(tokens[i] + strlen("nth="));
+        } else if (strstr(tokens[i], "a=") == tokens[i]) {
+            (*trigger)->a = atoi(tokens[i] + strlen("a="));
+        } else if (strstr(tokens[i], "b=") == tokens[i]) {
+            (*trigger)->b = atoi(tokens[i] + strlen("b="));
         } else {
             fprintf(stderr, "Invalid trigger '%s'.", tokens[i]);
             error = TRUE;
@@ -128,7 +149,11 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
 
     if (error) {
         sat_trigger_free(*trigger);
-        *found_trigger = NULL;
+        channels = sr_dev_inst_channels_get(sdi);
+        for (l = channels; l; l = l->next) {
+            ch = l->data;
+            ch->trigger = NULL;
+        }
     }
 
     return !error;

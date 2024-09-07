@@ -5,7 +5,7 @@
 
 export prefix=$(dirname $(realpath $0))
 export sample_dir="${prefix}/sample_files"
-tmp_dir='/dev/shm/eecpu-sat'
+tmp_dir='/tmp/eecpu-sat'
 log_file="${tmp_dir}/log"
 keep_output='false'
 
@@ -37,6 +37,7 @@ tests=(
     ut_calibration
     ut_output_analog
     ut_output_srzip
+    ut_trigger
 )
 
 run_test() {
@@ -72,7 +73,7 @@ pwd | grep -q 'software/unit_tests$' &&
     exit 1
 }
 
-rm -rf /dev/shm/eecpu-sat
+rm -rf /tmp/eecpu-sat
 mkdir -p "${tmp_dir}"
 
 [ ! -e "${sample_dir}" ] && {

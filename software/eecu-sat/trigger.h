@@ -25,5 +25,7 @@ struct sat_trigger *sat_trigger_new(const char *name);
 void sat_trigger_free(struct sat_trigger *trig);
 int sat_trigger_receive(struct sat_trigger *t, struct sr_datafeed_packet *packet_in);
 void sat_trigger_show(const struct sat_trigger *t);
+bool sat_trigger_activated(const struct sat_trigger *t);
+ssize_t sat_trigger_loc(const struct sat_trigger *t);
 
 #endif

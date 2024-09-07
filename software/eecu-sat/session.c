@@ -124,6 +124,12 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
     bool transform_initialized = 0;
     GSList *l;
     struct dev_frame *frame = sdi->priv;
+    ssize_t after_trigger = 0;
+    ssize_t before_trigger = 0;
+    ssize_t seek = 0;
+    ssize_t trigger_at_sample = 0;
+    ssize_t bytes_remaining = 0;
+    ssize_t samples_remaining = 0;
 
     analog.encoding = &encoding;
     analog.meaning = &meaning;
@@ -149,6 +155,8 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             fprintf(stderr, "Failed to initialize trigger module.\n");
 			return SR_ERR_ARG;
 		}
+        after_trigger = trigger->a;
+        before_trigger = trigger->b;
 	}
 
     if (opt->transform_module) {
@@ -180,32 +188,21 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
                     goto cleanup;
                 }
 
-                // skip saleae header if present
-                if (read(fd, analog.data, 8) != 8) {
-                    errMsg("during read()");
+                seek = 0;
+
+                if (ch_data_ptr->header_present)
+                    seek += SALEAE_HEADER_SZ;
+
+                if (lseek(fd, seek, SEEK_SET) < 0) {
+                    errMsg("during lseek()");
                     close(fd);
                     ret = SR_ERR_IO;
                     goto cleanup;
                 }
-                if (saleae_magic_is_present(analog.data)) {
-                    if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
-                        errMsg("during lseek()");
-                        close(fd);
-                        ret = SR_ERR_IO;
-                        goto cleanup;
-                    }
-                } else {
-                    if (lseek(fd, 0x0, SEEK_SET) < 0) {
-                        errMsg("during lseek()");
-                        close(fd);
-                        ret = SR_ERR_IO;
-                        goto cleanup;
-                    }
-                }
 
                 while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
                     pkt.type = SR_DF_ANALOG;
-                    analog.num_samples = read_len / sizeof(float);
+                    analog.num_samples = read_len / ch_data_ptr->sample_size;
                     sat_trigger_receive(ch_data_ptr->trigger, &pkt);
                 }
                 close(fd);
@@ -227,29 +224,47 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             goto cleanup;
         }
 
+        // crop based on after,before_trigger
+        seek = 0;
+        if (before_trigger && sat_trigger_activated(trigger)) {
+            trigger_at_sample = sat_trigger_loc(trigger);
+
+            if (before_trigger > trigger_at_sample) {
+                fprintf(stderr, "warning: cannot read %ld samples before trigger %d at sample %ld,\n", before_trigger, trigger->id, trigger_at_sample);
+                fprintf(stderr, "cropping will begin at sample #0 instead!\n");
+                samples_remaining = trigger_at_sample;
+            } else {
+                samples_remaining = before_trigger;
+                seek = (trigger_at_sample - before_trigger) * ch_data_ptr->sample_size;
+                printf("seek to %ld - %ld\n", trigger_at_sample, before_trigger);
+            }
+
+            if (trigger_at_sample + after_trigger > ch_data_ptr->sample_count) {
+                fprintf(stderr, "warning: cannot read %ld samples after trigger %d at sample %ld/%ld,\n", after_trigger, trigger->id, trigger_at_sample, ch_data_ptr->sample_count);
+                fprintf(stderr, "cropping will end at sample %ld instead!\n", ch_data_ptr->sample_count);
+                samples_remaining += ch_data_ptr->sample_count - trigger_at_sample;
+            } else {
+                samples_remaining += after_trigger;
+            }
+
+            bytes_remaining = samples_remaining * ch_data_ptr->sample_size;
+            //printf("attempting to save %ld samples after sample %ld\n", after_trigger, trigger_at_sample);
+        } else {
+            bytes_remaining = ch_data_ptr->input_file_size;
+        }
+
         // skip saleae header if present
-        if (read(fd, analog.data, 8) != 8) {
-            errMsg("during read()");
+        if (ch_data_ptr->header_present)
+            seek += SALEAE_HEADER_SZ;
+
+        if (lseek(fd, seek, SEEK_SET) < 0) {
+            errMsg("during lseek()");
             close(fd);
             ret = SR_ERR_IO;
             goto cleanup;
         }
-        if (saleae_magic_is_present(analog.data)) {
-            if (lseek(fd, SALEAE_HEADER_SZ, SEEK_SET) < 0) {
-                errMsg("during lseek()");
-                close(fd);
-                ret = SR_ERR_IO;
-                goto cleanup;
-            }
-        } else {
-            if (lseek(fd, 0x0, SEEK_SET) < 0) {
-                errMsg("during lseek()");
-                close(fd);
-                ret = SR_ERR_IO;
-                goto cleanup;
-            }
-        }
 
+        printf("start bytes_remaining %ld\n", bytes_remaining);
         j = 1;
         while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
             frame->ch = i;
@@ -259,22 +274,31 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
                 if (transform_initialized)
                     t->module->receive(t, &pkt, &tpkt);
                 if (o->module->receive(o, &pkt, NULL) != SR_OK) {
+                    close(fd);
                     goto cleanup;
                 }
             }
             pkt.type = SR_DF_ANALOG;
-            analog.num_samples = read_len / sizeof(float);
+            if (read_len > bytes_remaining)
+                read_len = bytes_remaining;
+            analog.num_samples = read_len / ch_data_ptr->sample_size;
             if (transform_initialized) {
                 t->module->receive(t, &pkt, &tpkt);
                 if (o->module->receive(o, tpkt, NULL) != SR_OK) {
+                    close(fd);
                     goto cleanup;
                 }
             } else {
                 if (o->module->receive(o, &pkt, NULL) != SR_OK) {
+                    close(fd);
                     goto cleanup;
                 }
             }
             j++;
+            bytes_remaining -= read_len;
+            printf("bytes_remaining %ld\n", bytes_remaining);
+            if (bytes_remaining <= 0)
+                break;
         }
         close(fd);
 
@@ -284,7 +308,6 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         }
         o->module->receive(o, &pkt, NULL);
     }
-
     //printf("%d channels exported\n", i);
 
  cleanup:

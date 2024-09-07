@@ -67,6 +67,43 @@ void sat_trigger_show(const struct sat_trigger *t)
     }
 }
 
+bool sat_trigger_activated(const struct sat_trigger *t)
+{
+    if (!t)
+        return false;
+
+    if (t->matches)
+        return true;
+
+    return false;
+}
+
+// get sample number based of the matched trigger
+ssize_t sat_trigger_loc(const struct sat_trigger *t)
+{
+    GSList *l;
+    struct trigger_match *match;
+    ssize_t ret = 0;
+    ssize_t cnt;
+
+    if (! t->matches)
+        return 0;
+
+    cnt = 1;
+    for (l = t->matches; l; l = l->next) {
+        match = l->data;
+        if (t->nth && (t->nth == cnt)) {
+            ret = match->sample_cnt;
+        }
+        cnt++;
+    }
+
+    if (t->nth && !ret)
+        fprintf(stderr, "warning: nth not matched\n");
+
+    return ret;
+}
+
 int sat_trigger_receive(struct sat_trigger *t, struct sr_datafeed_packet *packet_in)
 {
     struct trigger_context *ctx;

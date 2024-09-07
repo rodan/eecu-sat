@@ -29,6 +29,8 @@ struct sat_trigger {
     uint16_t type;
     float level;
     ssize_t nth;
+    ssize_t a;
+    ssize_t b;
     GSList *matches;
     void *priv;
 };
@@ -37,7 +39,10 @@ struct ch_data {
     uint16_t id;
     char *input_file_name;
     struct sat_trigger *trigger;
+    bool header_present;
     ssize_t input_file_size;
+    uint8_t sample_size;
+    ssize_t sample_count;
 };
 typedef struct ch_data ch_data_t;
 

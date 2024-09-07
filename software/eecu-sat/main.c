@@ -171,6 +171,7 @@ int main(int argc, char **argv)
     struct sr_dev_inst sdi = { 0 };
     struct dev_frame frame = { 0 };
     GSList *l, *channels = NULL;
+    uint8_t buff[8];
 
     if (parse_options(argc, argv)) {
         return SR_ERR_ARG;
@@ -212,6 +213,7 @@ int main(int argc, char **argv)
                 }
                 snprintf(ch_data_ptr->input_file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
                 ch_data_ptr->id = channel_total;
+                ch_data_ptr->sample_size = sizeof(float);
 
                 // get file size
                 if ((fp = fopen(ch_data_ptr->input_file_name, "r")) == NULL) {
@@ -221,7 +223,24 @@ int main(int argc, char **argv)
                 }
                 fseek(fp, 0L, SEEK_END);
                 ch_data_ptr->input_file_size = ftell(fp);
+
+                fseek(fp, 0L, SEEK_SET);
+                if (fread(&buff, 1, 8, fp) != 8) {
+                    errMsg("during read()");
+                    fclose(fp);
+                    ret = SR_ERR_IO;
+                    goto cleanup;
+                }
+
+                if (saleae_magic_is_present(&buff[0])) {
+                    ch_data_ptr->header_present = true;
+                    ch_data_ptr->sample_count = (ch_data_ptr->input_file_size - SALEAE_HEADER_SZ) / ch_data_ptr->sample_size;
+                } else {
+                    ch_data_ptr->sample_count = ch_data_ptr->input_file_size / ch_data_ptr->sample_size;
+                }
+ 
                 fclose(fp);
+
                 if (file_size_compare == -1)
                     file_size_compare = ch_data_ptr->input_file_size;
                 if (file_size_compare != ch_data_ptr->input_file_size) {
