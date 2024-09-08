@@ -3,8 +3,6 @@
 
 #include <glib.h>
 
-#define SALEAE_HEADER_SZ 0x30
-
 int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
 		struct sat_trigger **trigger);
 GHashTable *parse_generic_arg(const char *arg, gboolean sep_first, const char *key_first);
@@ -12,6 +10,5 @@ GHashTable *generic_arg_to_opt(const struct sr_option **opts, GHashTable *genarg
 GSList *check_unknown_keys(const struct sr_option **avail, GHashTable *used);
 gboolean warn_unknown_keys(const struct sr_option **avail, GHashTable *used,
 	const char *caption);
-bool saleae_magic_is_present(uint8_t *data);
 
 #endif

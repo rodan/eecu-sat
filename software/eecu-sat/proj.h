@@ -6,6 +6,7 @@
 /* we use some of the libsigrok structures and macros*/
 #include <libsigrok/libsigrok.h>
 #include "sigrok_internal.h"
+#include "saleae.h"
 
 #define                  CHUNK_SIZE  (8 * 1024 * 1024)
 #define                 LINE_MAX_SZ  64
@@ -39,10 +40,11 @@ struct ch_data {
     uint16_t id;
     char *input_file_name;
     struct sat_trigger *trigger;
-    bool header_present;
+    uint8_t file_type;
     ssize_t input_file_size;
     uint8_t sample_size;
     ssize_t sample_count;
+    struct saleae_ana_bh0 header;
 };
 typedef struct ch_data ch_data_t;
 

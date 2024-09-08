@@ -25,16 +25,6 @@
 #include "trigger.h"
 #include "parsers.h"
 
-bool saleae_magic_is_present(uint8_t *data)
-{
-    // 00000000  3c 53 41 4c 45 41 45 3e  00 00 00 00 01 00 00 00  |<SALEAE>........|
-    static const char saleae_magic[8] = {0x3c, 0x53, 0x41, 0x4c, 0x45, 0x41, 0x45, 0x3e};
-
-    if (memcmp(data, saleae_magic, 8) == 0)
-        return true;
-    return false;
-}
-
 int parse_trigger_match(char c)
 {
     int match;

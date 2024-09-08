@@ -190,8 +190,8 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 
                 seek = 0;
 
-                if (ch_data_ptr->header_present)
-                    seek += SALEAE_HEADER_SZ;
+                if (ch_data_ptr->file_type == SALEAE_ANALOG)
+                    seek += SALEAE_ANALOG_HDR_SIZE;
 
                 if (lseek(fd, seek, SEEK_SET) < 0) {
                     errMsg("during lseek()");
@@ -236,7 +236,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             } else {
                 samples_remaining = before_trigger;
                 seek = (trigger_at_sample - before_trigger) * ch_data_ptr->sample_size;
-                printf("seek to %ld - %ld\n", trigger_at_sample, before_trigger);
+                //printf("seek to %ld - %ld\n", trigger_at_sample, before_trigger);
             }
 
             if (trigger_at_sample + after_trigger > ch_data_ptr->sample_count) {
@@ -254,8 +254,8 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         }
 
         // skip saleae header if present
-        if (ch_data_ptr->header_present)
-            seek += SALEAE_HEADER_SZ;
+        if (ch_data_ptr->file_type == SALEAE_ANALOG)
+            seek += SALEAE_ANALOG_HDR_SIZE;
 
         if (lseek(fd, seek, SEEK_SET) < 0) {
             errMsg("during lseek()");
@@ -264,7 +264,6 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             goto cleanup;
         }
 
-        printf("start bytes_remaining %ld\n", bytes_remaining);
         j = 1;
         while ((read_len = read(fd, analog.data, CHUNK_SIZE)) > 0) {
             frame->ch = i;
@@ -296,7 +295,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             }
             j++;
             bytes_remaining -= read_len;
-            printf("bytes_remaining %ld\n", bytes_remaining);
+            //printf("bytes_remaining %ld\n", bytes_remaining);
             if (bytes_remaining <= 0)
                 break;
         }

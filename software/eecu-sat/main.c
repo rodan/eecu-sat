@@ -37,6 +37,7 @@
 #include "tlpi_hdr.h"
 #include "proj.h"
 #include "version.h"
+#include "saleae.h"
 #include "output.h"
 #include "output_analog.h"
 #include "output_srzip.h"
@@ -171,7 +172,7 @@ int main(int argc, char **argv)
     struct sr_dev_inst sdi = { 0 };
     struct dev_frame frame = { 0 };
     GSList *l, *channels = NULL;
-    uint8_t buff[8];
+    uint8_t buff[SALEAE_ANALOG_HDR_SIZE];
 
     if (parse_options(argc, argv)) {
         return SR_ERR_ARG;
@@ -225,16 +226,32 @@ int main(int argc, char **argv)
                 ch_data_ptr->input_file_size = ftell(fp);
 
                 fseek(fp, 0L, SEEK_SET);
-                if (fread(&buff, 1, 8, fp) != 8) {
+                if (fread(&buff, 1, SALEAE_ANALOG_HDR_SIZE, fp) != SALEAE_ANALOG_HDR_SIZE) {
                     errMsg("during read()");
                     fclose(fp);
                     ret = SR_ERR_IO;
                     goto cleanup;
                 }
 
-                if (saleae_magic_is_present(&buff[0])) {
-                    ch_data_ptr->header_present = true;
-                    ch_data_ptr->sample_count = (ch_data_ptr->input_file_size - SALEAE_HEADER_SZ) / ch_data_ptr->sample_size;
+                ch_data_ptr->file_type = saleae_get_hdr_type(&buff[0]);
+
+                if (ch_data_ptr->file_type == SALEAE_ANALOG) {
+                    ch_data_ptr->sample_count = (ch_data_ptr->input_file_size - SALEAE_ANALOG_HDR_SIZE) / ch_data_ptr->sample_size;
+                    memcpy(&ch_data_ptr->header, buff, SALEAE_ANALOG_HDR_SIZE);
+#if 0
+                    fprintf(stdout, "channel %s\n", ch_data_ptr->input_file_name);
+                    fprintf(stdout, "  version %d\n", ch_data_ptr->header.version);
+                    fprintf(stdout, "  type %d\n", ch_data_ptr->header.type);
+                    fprintf(stdout, "  begin time %lf\n", ch_data_ptr->header.begin_time);
+                    fprintf(stdout, "  sample rate %ld\n", ch_data_ptr->header.sample_rate);
+                    fprintf(stdout, "  downsample %ld\n", ch_data_ptr->header.downsample);
+                    fprintf(stdout, "  sample cnt %ld %ld\n", ch_data_ptr->header.num_samples, ch_data_ptr->sample_count);
+#endif
+                } else if (ch_data_ptr->file_type == SALEAE_DIGITAL) {
+                    errMsg("cannot use digital input files\n");
+                    fclose(fp);
+                    ret = SR_ERR_ARG;
+                    goto cleanup;
                 } else {
                     ch_data_ptr->sample_count = ch_data_ptr->input_file_size / ch_data_ptr->sample_size;
                 }
