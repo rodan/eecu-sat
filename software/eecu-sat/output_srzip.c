@@ -39,6 +39,11 @@ static int init(struct sr_output *o, GHashTable *options)
     struct zip_source *metadata = NULL;
     struct zip *archive;
     struct out_context *outc;
+    GSList *l;
+    char *buff = NULL;
+    char buffl[LINE_MAX_SZ];
+    ssize_t i;
+    ch_data_t *ch_data_ptr;
 
     unlink(o->filename);
 
@@ -80,6 +85,29 @@ static int init(struct sr_output *o, GHashTable *options)
             zip_discard(archive);
             return SR_ERR_IO;
         }
+    } else {
+        buff = g_malloc0(4096);
+        strcat(buff, "[global]\nsigrok version=0.5.2\n\n[device 1]\n");
+        l = o->sdi->channels;
+        ch_data_ptr = l->data;
+        snprintf(buffl, LINE_MAX_SZ, "samplerate=%ld Hz\n", ch_data_ptr->header.sample_rate / ch_data_ptr->header.downsample);
+        strcat(buff, buffl);
+        snprintf(buffl, LINE_MAX_SZ, "total analog=%d\n", g_slist_length(o->sdi->channels));
+        strcat(buff, buffl);
+        i=0;
+        for (l = o->sdi->channels; l; l = l->next) {
+            i++;
+            snprintf(buffl, LINE_MAX_SZ, "analog%ld=CH%ld\n", i, i);
+            strcat(buff, buffl);
+        }
+        metadata = zip_source_buffer(archive, buff, strlen(buff), 0);
+        if (zip_file_add(archive, "metadata", metadata, ZIP_FL_ENC_UTF_8) < 0) {
+            fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+            zip_source_free(metadata);
+            zip_discard(archive);
+            g_free(buff);
+            return SR_ERR_IO;
+        }
     }
 
     if (zip_close(archive) < 0) {
@@ -87,6 +115,9 @@ static int init(struct sr_output *o, GHashTable *options)
         zip_discard(archive);
         return SR_ERR_IO;
     }
+
+    if (buff)
+        g_free(buff);
 
     return SR_OK;
 }

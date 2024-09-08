@@ -21,11 +21,11 @@ fe521359e19f186c0a76af896a48527c22bf634e30e93bd00dcf2f50eed706f2  analog-1-6-1
 e7f47dd47ad28a11ccd2f0fb5af2250850798eb018c239534c576dd8ae0d3c4c  analog-1-7-1
 12624a3e9630f47096d052053d376381bd2c9ee7a473c6144031f194fa23303a  analog-1-8-1
 b1af4470cb1ab58adcc0182e7f5d8ab02d4084ccc6e890a888cbf8baa2c441c7  analog-1-9-1
-2321e33afab2ba914ef086d74c35326867af2e865389026932dcc459a41e8915  metadata
+6d03de2af8da5f4eedaa59bce29dad0c58e0ba2e2252a600dd343a04a321a90c  metadata
 d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35  version
 EOF
 
- ./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./out.sr --output-format "srzip:metadata_file=${sample_dir}/metadata_16ch"
+ ./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./out.sr --output-format "srzip"
 ret=$?
 
 unzip out.sr

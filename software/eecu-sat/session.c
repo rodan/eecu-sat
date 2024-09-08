@@ -142,7 +142,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 
     if (opt->output_file) {
         if (!(o = setup_output_format(sdi, opt->output_file, opt->output_format))) {
-            fprintf(stderr, "Failed to initialize transform module.\n");
+            fprintf(stderr, "Failed to initialize output module.\n");
             return SR_ERR_ARG;
         }
     } else {

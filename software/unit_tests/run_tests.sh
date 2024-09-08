@@ -37,6 +37,7 @@ tests=(
     ut_calibration
     ut_output_analog
     ut_output_srzip
+    ut_output_srzip_metadata_import
     ut_trigger
 )
 
