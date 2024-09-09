@@ -51,11 +51,22 @@ This is the reason why the code is basically a fork of sigrok-cli that contains 
 
 ### Build requirements
 
-Notable dependencies would be a Linux based OS, gcc, make, libzip and the libsigrok headers. compilation is as simple as
+#### Linux
+Notable dependencies would be a gcc, make, libzip and the libsigrok headers.
 
 ```
 cd ./software/eecu-sat
 make
+```
+
+#### FreeBSD
+
+this is 'Work in progress', not functional just yet. dependencies: gcc13, gmake, gsed
+
+```
+export CC='/usr/local/bin/gcc13'
+cd ./software/eecu-sat
+gmake
 ```
 
 ### TODO list (In Progress)
