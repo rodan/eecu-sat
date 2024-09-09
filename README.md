@@ -61,7 +61,7 @@ make
 ### TODO list (In Progress)
 
 - [ ] synchronize multiple sets of 16 channel acquisitions into one 48 channel srzip file
- - [x] crop intervals in a signal, based on a trigger definition
+- [x] crop intervals in a signal, based on a trigger definition
 - [ ] analyze all 48 channels and automatically detect faults based on a known good reference capture
 - [x] convert Logic exported raw analog signals into srzip files that can be loaded in pulseview
 - [x] relabeling capability of channels when seen in pulseview
