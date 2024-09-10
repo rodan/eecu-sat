@@ -284,7 +284,7 @@ int main(int argc, char **argv)
     channels = sr_dev_inst_channels_get(&sdi);
     for (l = channels; l; l = l->next) {
         ch_data_ptr = l->data;
-        printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
+        //printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
     }
 #endif
 

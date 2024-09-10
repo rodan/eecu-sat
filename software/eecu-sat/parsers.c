@@ -77,7 +77,6 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
     char **tokens, *sep;
     char *val;
     uint16_t id=0;
-    //struct sat_trigger **found_trigger = NULL;
 
     channels = sr_dev_inst_channels_get(sdi);
 
@@ -99,7 +98,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
                 ch = l->data;
                 if (strstr(ch->input_file_name, val)) {
                     ch->trigger = *trigger;
-                    //found_trigger = &ch->trigger;
+                    //printf("trigger set on channel %d\n", ch->id);
                     break;
                 }
                 ch = NULL;
@@ -135,7 +134,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
     }
     g_strfreev(tokens);
 
-    printf("trigger id=%d name=%s type=%d level=%f nth=%ld\n", (*trigger)->id, (*trigger)->name, (*trigger)->type, (*trigger)->level, (*trigger)->nth);
+    //printf("trigger id=%d name=%s type=%d level=%f nth=%ld\n", (*trigger)->id, (*trigger)->name, (*trigger)->type, (*trigger)->level, (*trigger)->nth);
 
     if (error) {
         sat_trigger_free(*trigger);
