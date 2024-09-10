@@ -30,7 +30,8 @@ struct __attribute__((packed)) saleae_ana_bh0 {
     uint64_t num_samples;
 }; // 48bytes
 
-#define  SALEAE_ANALOG_HDR_SIZE  48
+#define    SALEAE_ANALOG_HDR_SIZE  0x30
+#define  SALEAE_ANALOG_HDR_SC_POS  0x28
 
 uint8_t saleae_get_hdr_type(uint8_t *data);
 
