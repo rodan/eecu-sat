@@ -2,6 +2,9 @@
 
 set -e
 
+SED_BIN='sed'
+uname -s | grep -q 'FreeBSD' && SED_BIN='gsed'
+
 usage()
 {
     echo "$(basename "${0}") commands:"
@@ -21,7 +24,7 @@ err_unknown()
 get_from_header()
 {
     ITEM=''
-    ITEM=$(grep "${1}" "${input}" | sed "s|.*${1}\s*\([0-9]\{1,9\}\).*|\1|")
+    ITEM=$(grep "${1}" "${input}" | "${SED_BIN}" "s|.*${1}\s*\([0-9]\{1,9\}\).*|\1|")
     [ -z "${ITEM}" ] && {
         echo 'unknown version'
         exit 1

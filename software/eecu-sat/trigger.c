@@ -76,9 +76,8 @@ void sat_trigger_show(const struct sat_trigger *t)
     GSList *l;
     struct trigger_match *match;
 
-    if (! t->matches) {
-        fprintf(stdout, "trigger #%d '%s' did not activate\n", t->id, t->name);
-    }
+    if (! t->matches)
+        return;
 
     for (l = t->matches; l; l = l->next) {
         match = l->data;

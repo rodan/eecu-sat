@@ -29,6 +29,8 @@
 
 struct out_context {
     uint32_t channel_offset;
+    uint64_t samples_written;
+    bool header_present;
 };
 
 static int init(struct sr_output *o, GHashTable *options)
@@ -58,7 +60,9 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     ssize_t byte_cnt;
     const struct sr_datafeed_analog *analog;
     const struct dev_frame *frame = o->sdi->priv;
-    const struct out_context *outc = o->priv;
+    struct out_context *outc = o->priv;
+    ch_data_t *ch_data_ptr = NULL;
+    GSList *l;
 
     UNUSED(out);
 
@@ -71,9 +75,6 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     analog = pkt->payload;
 
     switch (pkt->type) {
-    case SR_DF_META:
-        snprintf(filename, PATH_MAX - 1, "metadata");
-        break;
     case SR_DF_ANALOG:
         snprintf(filename, PATH_MAX, "%s%d.bin", o->filename, frame->ch + outc->channel_offset);
         break;
@@ -82,9 +83,24 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     }
 
     if (frame->chunk == 1) {
-        fp = fopen(filename, "w");
+        outc->samples_written = 0;
+        outc->header_present = 0;
+        fp = fopen(filename, "wb");
+        // add header
+        for (l = o->sdi->channels; l; l = l->next) {
+            ch_data_ptr = l->data;
+            if ((ch_data_ptr->id == frame->ch) && (ch_data_ptr->file_type == SALEAE_ANALOG)) {
+                if (fwrite(&ch_data_ptr->header, 1, SALEAE_ANALOG_HDR_SIZE, fp) != SALEAE_ANALOG_HDR_SIZE) {
+                    errMsg("during fwrite()");
+                    ret = SR_ERR_IO;
+                    goto cleanup;
+                }
+                outc->header_present = true;
+                break;
+            }
+        }
     } else {
-        fp = fopen(filename, "a");
+        fp = fopen(filename, "ab");
     }
 
     if (!fp) {
@@ -101,7 +117,34 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         goto cleanup;
     }
 
- cleanup:
+    outc->samples_written += analog->num_samples;
+
+    if (fp) {
+        fclose(fp);
+        fp = NULL;
+    }
+
+    if (outc->header_present) {
+        // update header
+        fp = fopen(filename, "r+b");
+        if (!fp) {
+            errMsg("during fopen()");
+            ret = SR_ERR_IO;
+            goto cleanup;
+        }
+        if (fseek(fp, SALEAE_ANALOG_HDR_SC_POS, SEEK_SET) < 0) {
+            errMsg("during lseek()");
+            ret = SR_ERR_IO;
+            goto cleanup;
+        }
+        if (fwrite(&outc->samples_written, 1, sizeof(uint64_t), fp) != sizeof(uint64_t)) {
+            errMsg("during fwrite()");
+            ret = SR_ERR_IO;
+            goto cleanup;
+        }
+    }
+
+cleanup:
     if (filename)
         free(filename);
 

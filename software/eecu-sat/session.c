@@ -207,7 +207,10 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
                 }
                 close(fd);
 
-                sat_trigger_show(trigger);
+                if (! trigger->matches) {
+                    fprintf(stdout, "warning, trigger #%d '%s' did not activate\n", trigger->id, trigger->name);
+                }
+                //sat_trigger_show(trigger);
             }
         }
         //goto cleanup;
