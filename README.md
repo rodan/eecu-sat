@@ -71,7 +71,7 @@ gmake
 
 ### Usage
 
-a [manual](./doc/eecu-sat.1.html) is provided
+a [manual](./doc/eecu-sat.1.md) is provided
 ```
 man ./doc/eecu-sat.1
 ```
