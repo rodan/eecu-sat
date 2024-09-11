@@ -69,6 +69,17 @@ cd ./software/eecu-sat
 gmake
 ```
 
+### Usage
+
+a [manual](./doc/eecu-sat.1.html) is provided
+```
+man ./doc/eecu-sat.1
+```
+
+***SYNOPSIS***
+
+eecu-sat [-hv] [-i, --input FILENAME_MATCH ] [-o, --output FILE\_PREFIX] [-O, --output-format OUTPUT ] [-t, --triggers TRIGGERS ] [-T, --transform-module TRANSFORM ] [-L, --list]
+
 ### TODO list (In Progress)
 
 - [ ] analyze all 48 channels and automatically detect faults based on a known good reference capture
