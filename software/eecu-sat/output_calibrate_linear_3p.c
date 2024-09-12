@@ -26,7 +26,7 @@
 #include <linux/limits.h>
 #include <zip.h>
 #include "proj.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "calib.h"
 #include "output.h"
 
@@ -117,13 +117,13 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         strcat(cco, ccol);
 
         if ((ifd = open(outc->calib_file, O_WRONLY | O_APPEND)) < 0) {
-            errMsg("opening ini file");
+            err_msg("opening ini file");
             ret = SR_ERR_ARG;
             goto cleanup;
         }
 
         if (write(ifd, cco, strlen(cco)) != strlen(cco)) {
-            errMsg("writing to ini file");
+            err_msg("writing to ini file");
             ret = SR_ERR_IO;
             goto cleanup;
         }

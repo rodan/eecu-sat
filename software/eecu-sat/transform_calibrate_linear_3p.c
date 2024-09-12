@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <linux/limits.h>
 #include "proj.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "calib.h"
 #include "transform.h"
 

@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <linux/limits.h>
 #include "proj.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "output.h"
 
 struct out_context {
@@ -83,7 +83,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
             ch_data_ptr = l->data;
             if ((ch_data_ptr->id == frame->ch) && (ch_data_ptr->file_type == SALEAE_ANALOG)) {
                 if (fwrite(&ch_data_ptr->header, 1, SALEAE_ANALOG_HDR_SIZE, fp) != SALEAE_ANALOG_HDR_SIZE) {
-                    errMsg("during fwrite()");
+                    err_msg("during fwrite()");
                     ret = SR_ERR_IO;
                     goto cleanup;
                 }
@@ -96,7 +96,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     }
 
     if (!fp) {
-        errMsg("during fopen()");
+        err_msg("during fopen()");
         ret = SR_ERR_IO;
         goto cleanup;
     }
@@ -104,7 +104,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     //printf("fn: %s\n", filename);
     byte_cnt = analog->num_samples * sizeof(float);
     if (fwrite(analog->data, 1, byte_cnt, fp) != byte_cnt) {
-        errMsg("during fwrite()");
+        err_msg("during fwrite()");
         ret = SR_ERR_IO;
         goto cleanup;
     }
@@ -120,17 +120,17 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         // update header
         fp = fopen(filename, "r+b");
         if (!fp) {
-            errMsg("during fopen()");
+            err_msg("during fopen()");
             ret = SR_ERR_IO;
             goto cleanup;
         }
         if (fseek(fp, SALEAE_ANALOG_HDR_SC_POS, SEEK_SET) < 0) {
-            errMsg("during lseek()");
+            err_msg("during lseek()");
             ret = SR_ERR_IO;
             goto cleanup;
         }
         if (fwrite(&outc->samples_written, 1, sizeof(uint64_t), fp) != sizeof(uint64_t)) {
-            errMsg("during fwrite()");
+            err_msg("during fwrite()");
             ret = SR_ERR_IO;
             goto cleanup;
         }

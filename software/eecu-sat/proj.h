@@ -23,6 +23,7 @@ struct cmdline_opt {
     char *triggers;
     bool skip_header;
     uint32_t action;
+    uint32_t loglevel;
 };
 
 struct sat_trigger {

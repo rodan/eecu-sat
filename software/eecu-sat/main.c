@@ -34,7 +34,7 @@
 #include <fcntl.h>
 
 #include "config.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "proj.h"
 #include "version.h"
 #include "saleae.h"
@@ -160,15 +160,35 @@ static int parse_options(int argc, char **argv)
     return SR_OK;
 }
 
+static void logger(const gchar *log_domain, GLogLevelFlags log_level,
+           const gchar *message, gpointer cb_data)
+{
+    (void)log_domain;
+    (void)cb_data;
+
+    /*
+     * All messages, warnings, errors etc. go to stderr (not stdout) in
+     * order to not mess up the CLI tool data output, e.g. VCD output.
+     */
+    if (log_level & (G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING)
+            || opt.loglevel > SR_LOG_WARN) {
+        fprintf(stderr, "%s\n", message);
+        fflush(stderr);
+    }
+
+    //if (log_level & (G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL))
+    //    exit(1);
+}
+
 int main(int argc, char **argv)
 {
     int res;
     struct dirent **namelist;
-    int i, ch_cnt;
+    int i, ch_cnt = 0;
     int channel_total = 0;
-    char *_input_dirname;
+    char *_input_dirname = NULL;
     char *input_dirname;
-    char *_input_basename;
+    char *_input_basename = NULL;
     char *input_basename;
     ssize_t file_name_len;
     FILE *fp;
@@ -180,9 +200,15 @@ int main(int argc, char **argv)
     GSList *l, *channels = NULL;
     uint8_t buff[SALEAE_ANALOG_HDR_SIZE];
 
+    opt.loglevel = SR_LOG_INFO;
+    g_log_set_default_handler(logger, NULL);
+
     if (parse_options(argc, argv)) {
         return SR_ERR_ARG;
     }
+
+    if (sr_log_loglevel_set(opt.loglevel) != SR_OK)
+        return SR_ERR_ARG;
 
     _input_dirname = strdup(opt.input_prefix);
     _input_basename = strdup(opt.input_prefix);
@@ -214,7 +240,7 @@ int main(int argc, char **argv)
 
                 // get file size
                 if ((fp = fopen(ch_data_ptr->input_file_name, "r")) == NULL) {
-                    errMsg("opening input file");
+                    err_msg("opening input file");
                     ret = SR_ERR_ARG;
                     goto cleanup;
                 }
@@ -223,7 +249,7 @@ int main(int argc, char **argv)
 
                 fseek(fp, 0L, SEEK_SET);
                 if (fread(&buff, 1, SALEAE_ANALOG_HDR_SIZE, fp) != SALEAE_ANALOG_HDR_SIZE) {
-                    errMsg("during read()");
+                    err_msg("during read()");
                     fclose(fp);
                     ret = SR_ERR_IO;
                     goto cleanup;
@@ -244,7 +270,7 @@ int main(int argc, char **argv)
                     fprintf(stdout, "  sample cnt %ld %ld\n", ch_data_ptr->header.num_samples, ch_data_ptr->sample_count);
 #endif
                 } else if (ch_data_ptr->file_type == SALEAE_DIGITAL) {
-                    errMsg("cannot use digital input files\n");
+                    err_msg("cannot use digital input files\n");
                     fclose(fp);
                     ret = SR_ERR_ARG;
                     goto cleanup;
@@ -268,13 +294,14 @@ int main(int argc, char **argv)
         }
     }
 
-    if (!channel_total) {
-        fprintf(stderr, "error: no valid input channels found\n");
+    if (channel_total) {
+        ret = run_session(&sdi, &opt);
+    } else {
+        g_warning("error: %s:%d no valid input channels found\n", __FILE__, __LINE__);
         show_usage();
-        return SR_ERR_ARG;
+        ret = SR_ERR_ARG;
+        goto cleanup;
     }
-
-    ret = run_session(&sdi, &opt);
 
 #if 0
     channels = sr_dev_inst_channels_get(&sdi);
@@ -284,7 +311,7 @@ int main(int argc, char **argv)
     }
 #endif
 
- cleanup:
+cleanup:
     for (i = 0; i < ch_cnt; i++) {
         free(namelist[i]);
     }

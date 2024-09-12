@@ -26,7 +26,7 @@
 #include <fcntl.h>
 
 #include "proj.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "ini.h"
 #include "calib.h"
 

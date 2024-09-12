@@ -21,10 +21,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include "proj.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "parsers.h"
 #include "output.h"
 #include "transform.h"
@@ -178,7 +179,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             ch_data_ptr = l->data;
             if (ch_data_ptr->trigger) {
                 if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
-                    errMsg("opening input file");
+                    err_msg("opening input file");
                     ret = SR_ERR_IO;
                     goto cleanup;
                 }
@@ -189,7 +190,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
                     seek += SALEAE_ANALOG_HDR_SIZE;
 
                 if (lseek(fd, seek, SEEK_SET) < 0) {
-                    errMsg("during lseek()");
+                    err_msg("during lseek()");
                     close(fd);
                     ret = SR_ERR_IO;
                     goto cleanup;
@@ -217,7 +218,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         i++;
 
         if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
-            errMsg("opening input file");
+            err_msg("opening input file");
             ret = SR_ERR_IO;
             goto cleanup;
         }
@@ -256,7 +257,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             seek += SALEAE_ANALOG_HDR_SIZE;
 
         if (lseek(fd, seek, SEEK_SET) < 0) {
-            errMsg("during lseek()");
+            err_msg("during lseek()");
             close(fd);
             ret = SR_ERR_IO;
             goto cleanup;

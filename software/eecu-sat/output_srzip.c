@@ -25,7 +25,7 @@
 #include <linux/limits.h>
 #include <zip.h>
 #include "proj.h"
-#include "tlpi_hdr.h"
+#include "error.h"
 #include "output.h"
 
 struct out_context {

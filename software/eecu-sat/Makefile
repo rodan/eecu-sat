@@ -1,19 +1,15 @@
 
 PROJ = eecu-sat
 
-TLPI_DIR  = ../lib/tlpi-lib
-TLPI_SRC  = ${TLPI_DIR}/error_functions.c ${TLPI_DIR}/get_num.c
-TLPI_OBJ  = $(patsubst ${TLPI_DIR}/%.c,build/lib/tlpi/%.o,${TLPI_SRC})
-
 INIH_DIR  = ../lib/inih
 INIH_SRC  = ${INIH_DIR}/ini.c
 INIH_OBJ  = $(patsubst ${INIH_DIR}/%.c,build/lib/inih/%.o,${INIH_SRC})
 
-LIBS_OBJ = $(TLPI_OBJ) $(INIH_OBJ)
+LIBS_OBJ = $(INIH_OBJ)
 
-INCLUDES  := -I ./ -I $(TLPI_DIR) -I $(INIH_DIR)
-LOCAL_SRC_C := main.c saleae.c session.c parsers.c output.c output_analog.c output_srzip.c output_calibrate_linear_3p.c calib.c transform.c transform_calibrate_linear_3p.c trigger.c
-SRC        = $(LOCAL_SRC_C) $(TLPI_SRC) $(INIH_SRC)
+INCLUDES  := -I ./ -I $(INIH_DIR)
+LOCAL_SRC_C := main.c saleae.c session.c parsers.c error.c output.c output_analog.c output_srzip.c output_calibrate_linear_3p.c calib.c transform.c transform_calibrate_linear_3p.c trigger.c
+SRC        = $(LOCAL_SRC_C) $(INIH_SRC)
 EXOUTPUT   = $(PROJ)
 
 LOCAL_OBJECTS     = $(patsubst %.c,build/%.o,${LOCAL_SRC_C})
@@ -47,36 +43,33 @@ COVERITY_SCAN_TOKEN := $(shell cat ../../.secrets.COVERITY_SCAN_TOKEN 2>/dev/nul
 .PHONY: valgrind
 .PHONY: lib
 
-all : libs version.h $(EXOUTPUT)
+all : libs version.h ename.c.inc $(EXOUTPUT)
 libs : $(LIBS_OBJ)
 $(EXOUTPUT) : libs version.h
 
 version.h: $(SRC)
 	@../scripts/setver.sh
 
-build/lib/tlpi/%.o: ${TLPI_DIR}/%.c
-	@bash ../lib/tlpi-lib/Build_ename.sh > ../lib/tlpi-lib/ename.c.inc
-	@mkdir -p build/lib/tlpi
-	@echo -e " * $(@F)"
-	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -Wno-write-strings -c $< -o $@
+ename.c.inc:
+	@bash ../scripts/build_ename.sh > ename.c.inc
 
 build/lib/inih/%.o: ${INIH_DIR}/%.c
 	@mkdir -p build/lib/inih
 	@echo -e " * $(@F)"
-	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -c $< -o $@
+	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
 
 build/%.o: %.c
 	@mkdir -p build
 	@echo -e " * $(@F)"
-	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) $(CXXFLAGS) -c $< -o $@
+	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
 
 %.o: %.c
 	@echo -e " * $(@F)"
 	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
 
-$(EXOUTPUT): $(LOCAL_OBJECTS) $(TLPI_OBJ) $(INIH_OBJ)
+$(EXOUTPUT): $(LOCAL_OBJECTS) $(INIH_OBJ)
 	@echo -e "\n>> Building $@ as target $(TARGET)"
-	@$(CC) $(TARGET_LDFLAGS) $(LOCAL_OBJECTS) $(TLPI_OBJ) $(INIH_OBJ) -o $@ && size $@
+	@$(CC) $(TARGET_LDFLAGS) $(LOCAL_OBJECTS) $(INIH_OBJ) -o $@ && size $@
 
 clean :
 	@${RM} -rf build
