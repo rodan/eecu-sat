@@ -240,7 +240,9 @@ int main(int argc, char **argv)
 
                 // get file size
                 if ((fp = fopen(ch_data_ptr->input_file_name, "r")) == NULL) {
-                    err_msg("opening input file");
+                    err_msg("%s:%d opening input file", __FILE__, __LINE__);
+                    g_free(ch_data_ptr->input_file_name);
+                    g_free(ch_data_ptr);
                     ret = SR_ERR_ARG;
                     goto cleanup;
                 }
@@ -249,7 +251,9 @@ int main(int argc, char **argv)
 
                 fseek(fp, 0L, SEEK_SET);
                 if (fread(&buff, 1, SALEAE_ANALOG_HDR_SIZE, fp) != SALEAE_ANALOG_HDR_SIZE) {
-                    err_msg("during read()");
+                    err_msg("%s:%d during fread()", __FILE__, __LINE__);
+                    g_free(ch_data_ptr->input_file_name);
+                    g_free(ch_data_ptr);
                     fclose(fp);
                     ret = SR_ERR_IO;
                     goto cleanup;
@@ -270,7 +274,9 @@ int main(int argc, char **argv)
                     fprintf(stdout, "  sample cnt %ld %ld\n", ch_data_ptr->header.num_samples, ch_data_ptr->sample_count);
 #endif
                 } else if (ch_data_ptr->file_type == SALEAE_DIGITAL) {
-                    err_msg("cannot use digital input files\n");
+                    err_msg("%s:%d cannot use digital input files", __FILE__, __LINE__);
+                    g_free(ch_data_ptr->input_file_name);
+                    g_free(ch_data_ptr);
                     fclose(fp);
                     ret = SR_ERR_ARG;
                     goto cleanup;
@@ -283,9 +289,10 @@ int main(int argc, char **argv)
                 if (file_size_compare == -1)
                     file_size_compare = ch_data_ptr->input_file_size;
                 if (file_size_compare != ch_data_ptr->input_file_size) {
-                    fprintf(stderr, "error: input files do not have the exact same size\n");
-                    fprintf(stderr, " %s has %ld bytes, but %ld bytes were expected\n", ch_data_ptr->input_file_name,
+                    err_msg("%s:%d file %s has %ld bytes, but %ld bytes were expected", __FILE__, __LINE__, ch_data_ptr->input_file_name,
                             ch_data_ptr->input_file_size, file_size_compare);
+                    g_free(ch_data_ptr->input_file_name);
+                    g_free(ch_data_ptr);
                     ret = SR_ERR_ARG;
                     goto cleanup;
                 }
@@ -297,7 +304,7 @@ int main(int argc, char **argv)
     if (channel_total) {
         ret = run_session(&sdi, &opt);
     } else {
-        g_warning("error: %s:%d no valid input channels found\n", __FILE__, __LINE__);
+        err_msg("%s:%d no valid input channels found", __FILE__, __LINE__);
         show_usage();
         ret = SR_ERR_ARG;
         goto cleanup;

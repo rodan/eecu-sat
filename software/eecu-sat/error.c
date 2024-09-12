@@ -51,15 +51,19 @@ static void output_error(bool use_err, int err, bool flush_stdout, const char *f
 
 void err_msg(const char *format, ...)
 {
-    va_list argList;
-    int savedErrno;
+    va_list arg_list;
+    int saved_errno;
+    bool show_errno = false;
 
-    savedErrno = errno;         /* In case we change it here */
+    saved_errno = errno;        /* In case we change it here */
 
-    va_start(argList, format);
-    output_error(true, errno, true, format, argList);
-    va_end(argList);
+    if (saved_errno)
+        show_errno = true;
 
-    errno = savedErrno;
+    va_start(arg_list, format);
+    output_error(show_errno, errno, true, format, arg_list);
+    va_end(arg_list);
+
+    errno = saved_errno;
 }
 

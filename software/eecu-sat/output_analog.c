@@ -78,12 +78,18 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         outc->samples_written = 0;
         outc->header_present = 0;
         fp = fopen(filename, "wb");
+        if (!fp) {
+            err_msg("%s:%d during fopen()", __FILE__, __LINE__);
+            ret = SR_ERR_IO;
+            goto cleanup;
+        }
+
         // add header
         for (l = o->sdi->channels; l; l = l->next) {
             ch_data_ptr = l->data;
             if ((ch_data_ptr->id == frame->ch) && (ch_data_ptr->file_type == SALEAE_ANALOG)) {
                 if (fwrite(&ch_data_ptr->header, 1, SALEAE_ANALOG_HDR_SIZE, fp) != SALEAE_ANALOG_HDR_SIZE) {
-                    err_msg("during fwrite()");
+                    err_msg("%s:%d during fwrite()", __FILE__, __LINE__);
                     ret = SR_ERR_IO;
                     goto cleanup;
                 }
@@ -93,18 +99,18 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         }
     } else {
         fp = fopen(filename, "ab");
-    }
+        if (!fp) {
+            err_msg("%s:%d during fopen()", __FILE__, __LINE__);
+            ret = SR_ERR_IO;
+            goto cleanup;
+        }
 
-    if (!fp) {
-        err_msg("during fopen()");
-        ret = SR_ERR_IO;
-        goto cleanup;
     }
 
     //printf("fn: %s\n", filename);
     byte_cnt = analog->num_samples * sizeof(float);
     if (fwrite(analog->data, 1, byte_cnt, fp) != byte_cnt) {
-        err_msg("during fwrite()");
+        err_msg("%s:%d during fwrite()", __FILE__, __LINE__);
         ret = SR_ERR_IO;
         goto cleanup;
     }
@@ -120,17 +126,17 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         // update header
         fp = fopen(filename, "r+b");
         if (!fp) {
-            err_msg("during fopen()");
+            err_msg("%s:%d during fopen()", __FILE__, __LINE__);
             ret = SR_ERR_IO;
             goto cleanup;
         }
         if (fseek(fp, SALEAE_ANALOG_HDR_SC_POS, SEEK_SET) < 0) {
-            err_msg("during lseek()");
+            err_msg("%s:%d during lseek()", __FILE__, __LINE__);
             ret = SR_ERR_IO;
             goto cleanup;
         }
         if (fwrite(&outc->samples_written, 1, sizeof(uint64_t), fp) != sizeof(uint64_t)) {
-            err_msg("during fwrite()");
+            err_msg("%s:%d during fwrite()", __FILE__, __LINE__);
             ret = SR_ERR_IO;
             goto cleanup;
         }

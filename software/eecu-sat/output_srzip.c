@@ -18,7 +18,6 @@
  */
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -57,13 +56,13 @@ static int init(struct sr_output *o, GHashTable *options)
 
     archive = zip_open(o->filename, ZIP_CREATE, NULL);
     if (!archive) {
-        fprintf(stderr, "error: zip_open() has failed\n");
+        err_msg("%s:%d error: zip_open() has failed", __FILE__, __LINE__);
         return SR_ERR_IO;
     }
 
     src = zip_source_buffer(archive, "2", 1, 0);
     if (zip_file_add(archive, "version", src, ZIP_FL_ENC_UTF_8) < 0) {
-        fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+        err_msg("%s:%d Error adding file into archive: %s", __FILE__, __LINE__, zip_strerror(archive));
         zip_source_free(src);
         zip_discard(archive);
         return SR_ERR_IO;
@@ -72,11 +71,11 @@ static int init(struct sr_output *o, GHashTable *options)
     if (outc->metadata_file && (outc->metadata_file[0] != 0)) {
         metadata = zip_source_file(archive, outc->metadata_file, 0, -1);
         if (!metadata) {
-            fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+            err_msg("%s:%d Error adding file into archive: %s", __FILE__, __LINE__, zip_strerror(archive));
             return SR_ERR_IO;
         }
         if (zip_file_add(archive, "metadata", metadata, ZIP_FL_ENC_UTF_8) < 0) {
-            fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+            err_msg("%s:%d Error adding file into archive: %s", __FILE__, __LINE__, zip_strerror(archive));
             zip_source_free(metadata);
             zip_discard(archive);
             return SR_ERR_IO;
@@ -98,7 +97,7 @@ static int init(struct sr_output *o, GHashTable *options)
         }
         metadata = zip_source_buffer(archive, buff, strlen(buff), 0);
         if (zip_file_add(archive, "metadata", metadata, ZIP_FL_ENC_UTF_8) < 0) {
-            fprintf(stderr, "Error adding file into archive: %s", zip_strerror(archive));
+            err_msg("%s:%d Error adding file into archive: %s", __FILE__, __LINE__, zip_strerror(archive));
             zip_source_free(metadata);
             zip_discard(archive);
             g_free(buff);
@@ -107,7 +106,7 @@ static int init(struct sr_output *o, GHashTable *options)
     }
 
     if (zip_close(archive) < 0) {
-        fprintf(stderr, "Error saving zipfile: %s", zip_strerror(archive));
+        err_msg("%s:%d Error saving zipfile: %s", __FILE__, __LINE__, zip_strerror(archive));
         zip_discard(archive);
         return SR_ERR_IO;
     }
@@ -148,7 +147,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
     }
 
     if (zip_file_add(archive, outc->target_filename, src, ZIP_FL_ENC_UTF_8) < 0) {
-        fprintf(stderr, "Failed to add chunk: %s", zip_strerror(archive));
+        err_msg("%s:%d Failed to add chunk: %s", __FILE__, __LINE__, zip_strerror(archive));
         zip_source_free(src);
         zip_discard(archive);
         return SR_ERR_IO;
@@ -156,7 +155,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
 
  cleanup:
     if (zip_close(archive) < 0) {
-        fprintf(stderr, "Error saving session file: %s", zip_strerror(archive));
+        err_msg("%s:%d Error saving session file: %s", __FILE__, __LINE__, zip_strerror(archive));
         zip_discard(archive);
         return SR_ERR_IO;
     }

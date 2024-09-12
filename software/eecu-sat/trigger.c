@@ -117,7 +117,7 @@ ssize_t sat_trigger_loc(const struct sat_trigger *t)
     }
 
     if (t->nth && !ret)
-        fprintf(stderr, "warning: nth not matched\n");
+        err_msg("%s:%d warning: nth not matched", __FILE__, __LINE__);
 
     return ret;
 }

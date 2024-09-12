@@ -97,16 +97,16 @@ int calib_read_params_from_file(char *file_name, void *ctx, uint8_t flags)
 
     if (flags == CALIB_INI_GLOBALS) {
         if (ini_parse(file_name, calib_inih_globals_handler, ctx) < 0) {
-            fprintf(stderr, "error: can't load calibration file\n");
+            err_msg("%s:%d can't load calibration file", __FILE__, __LINE__);
             ret = SR_ERR_ARG;
         }
     } else if (flags == CALIB_INI_CHANNEL) {
         if (ini_parse(file_name, calib_inih_channel_handler, ctx) < 0) {
-            fprintf(stderr, "error: can't load calibration file\n");
+            err_msg("%s:%d can't load calibration file", __FILE__, __LINE__);
             ret = SR_ERR_ARG;
         }
     } else {
-        fprintf(stderr, "improper use of 'flags' in calib_read_params_from_file()\n");
+        err_msg("%s:%d improper use of 'flags' in calib_read_params_from_file()", __FILE__, __LINE__);
         ret = SR_ERR_ARG;
     }
 
@@ -204,7 +204,7 @@ int calib_init_from_buffer(float *buffer, ssize_t num_samples, calib_context_t *
     //printf("stab_cnt %ld\nchecklist %x\n", c->stab_cnt, c->checklist);
 
     if (c->checklist != (CALIB_P0_DONE | CALIB_P1_DONE | CALIB_P2_DONE)) {
-        fprintf(stderr, "calibration error: cannot detect stable signals\n");
+        err_msg("%s:%d calibration error: cannot detect stable signals", __FILE__, __LINE__);
         ret = SR_ERR_DATA;
         goto cleanup;
     }

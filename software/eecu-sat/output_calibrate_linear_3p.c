@@ -49,7 +49,7 @@ static int init(struct sr_output *o, GHashTable *options)
     outc->calib_file = g_strdup(g_variant_get_string(g_hash_table_lookup(options, "calib_file"), NULL));
 
     if ((calib_read_params_from_file(outc->calib_file, &outc->cal.globals, CALIB_INI_GLOBALS)) != SR_OK) {
-        fprintf(stderr, "error during calib_read_params_from_file()\n");
+        err_msg("%s:%d error during calib_read_params_from_file()", __FILE__, __LINE__);
         g_free(outc->calib_file);
         g_free(outc);
         o->priv = NULL;
@@ -87,7 +87,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         break;
     case SR_DF_FRAME_END:
         if (c->checklist != (CALIB_P0_DONE | CALIB_P1_DONE | CALIB_P2_DONE)) {
-            fprintf(stderr, "calibration error: cannot detect stable signals\n");
+            err_msg("%s:%d calibration error: cannot detect stable signals", __FILE__, __LINE__);
             ret = SR_ERR_DATA;
             goto cleanup;
         }
@@ -117,13 +117,13 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         strcat(cco, ccol);
 
         if ((ifd = open(outc->calib_file, O_WRONLY | O_APPEND)) < 0) {
-            err_msg("opening ini file");
+            err_msg("%s:%d during open()", __FILE__, __LINE__);
             ret = SR_ERR_ARG;
             goto cleanup;
         }
 
         if (write(ifd, cco, strlen(cco)) != strlen(cco)) {
-            err_msg("writing to ini file");
+            err_msg("%s:%d during write to ini file", __FILE__, __LINE__);
             ret = SR_ERR_IO;
             goto cleanup;
         }

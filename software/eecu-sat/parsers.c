@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "proj.h"
+#include "error.h"
 #include "trigger.h"
 #include "parsers.h"
 
@@ -87,7 +88,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
     tokens = g_strsplit(s, ":", -1);
     for (i = 0; tokens[i]; i++) {
         if (!(sep = strchr(tokens[i], '='))) {
-            fprintf(stderr, "Invalid trigger '%s'.", tokens[i]);
+            err_msg("%s:%d Invalid trigger '%s'.", __FILE__, __LINE__, tokens[i]);
             error = TRUE;
             break;
         }
@@ -104,7 +105,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
                 ch = NULL;
             }
             if (!ch) {
-                fprintf(stderr, "Invalid channel '%s'.", tokens[i]);
+                err_msg("%s:%d Invalid channel '%s'.", __FILE__, __LINE__, tokens[i]);
                 error = TRUE;
                 break;
             }
@@ -114,7 +115,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
             val = tokens[i] + strlen("type=");
             (*trigger)->type = parse_trigger_match(val[0]);
             if (!(*trigger)->type) {
-                fprintf(stderr, "Invalid trigger type '%s'.", tokens[i]);
+                err_msg("%s:%d Invalid trigger type '%s'.", __FILE__, __LINE__, tokens[i]);
                 error = TRUE;
                 break;
             }
@@ -127,7 +128,7 @@ int parse_triggerstring(const struct sr_dev_inst *sdi, const char *s,
         } else if (strstr(tokens[i], "b=") == tokens[i]) {
             (*trigger)->b = atoi(tokens[i] + strlen("b="));
         } else {
-            fprintf(stderr, "Invalid trigger '%s'.", tokens[i]);
+            err_msg("%s:%d Invalid trigger option '%s'.", __FILE__, __LINE__, tokens[i]);
             error = TRUE;
             break;
         }

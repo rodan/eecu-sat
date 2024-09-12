@@ -44,16 +44,21 @@ const struct sr_output *setup_output_format(const struct sr_dev_inst *sdi, char 
 			opt_output_format = DEFAULT_OUTPUT_FORMAT_FILE;
 		} else {
 			//opt_output_format = DEFAULT_OUTPUT_FORMAT_NOFILE;
-		    g_critical("output file not defined, exiting");
+		    err_msg("%s:%d output file not defined, exiting", __FILE__, __LINE__);
+            return NULL;
 		}
 	}
 
 	fmtargs = parse_generic_arg(opt_output_format, TRUE, NULL);
 	fmtspec = g_hash_table_lookup(fmtargs, "sigrok_key");
-	if (!fmtspec)
-		g_critical("Invalid output format.");
-	if (!(omod = sat_output_find(fmtspec)))
-		g_critical("Unknown output module '%s'.", fmtspec);
+	if (!fmtspec) {
+		err_msg("%s:%d Invalid output format.", __FILE__, __LINE__);
+        return NULL;
+    }
+	if (!(omod = sat_output_find(fmtspec))) {
+		err_msg("%s:%d Unknown output module '%s'.", __FILE__, __LINE__, fmtspec);
+        return NULL;
+    }
 	g_hash_table_remove(fmtargs, "sigrok_key");
 	if ((options = sat_output_options_get(omod))) {
 		fmtopts = generic_arg_to_opt(options, fmtargs);
@@ -82,12 +87,12 @@ const struct sr_transform *setup_transform_module(const struct sr_dev_inst *sdi,
     fmtargs = parse_generic_arg(opt_transform_module, TRUE, NULL);
     fmtspec = g_hash_table_lookup(fmtargs, "sigrok_key");
     if (!fmtspec) {
-        fprintf(stderr, "Invalid transform module.\n");
-        exit(SR_ERR_ARG);
+        err_msg("%s:%d Invalid transform module.", __FILE__, __LINE__);
+        return NULL;
     }
     if (!(tmod = sat_transform_find(fmtspec))) {
-        fprintf(stderr, "Unknown transform module '%s'.\n", fmtspec);
-        exit(SR_ERR_ARG);
+        err_msg("%s:%d Unknown transform module '%s'.", __FILE__, __LINE__, fmtspec);
+        return NULL;
     }
     g_hash_table_remove(fmtargs, "sigrok_key");
     if ((options = sat_transform_options_get(tmod))) {
@@ -137,23 +142,23 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
     analog.spec = &spec;
 
     if (!opt->output_format) {
-        fprintf(stderr, "output format not selected\n");
+        err_msg("%s:%d output format not selected", __FILE__, __LINE__);
         return SR_ERR_ARG;
     }
 
     if (opt->output_file) {
         if (!(o = setup_output_format(sdi, opt->output_file, opt->output_format))) {
-            fprintf(stderr, "Failed to initialize output module.\n");
+            err_msg("%s:%d Failed to initialize output module.", __FILE__, __LINE__);
             return SR_ERR_ARG;
         }
     } else {
-        fprintf(stderr, "output file not defined, exiting.\n");
+        err_msg("%s:%d output file not defined", __FILE__, __LINE__);
         return SR_ERR_ARG;
     }
 
 	if (opt->triggers) {
 		if (!parse_triggerstring(sdi, opt->triggers, &trigger)) {
-            fprintf(stderr, "Failed to initialize trigger module.\n");
+            err_msg("%s:%d Failed to initialize trigger module", __FILE__, __LINE__);
 			return SR_ERR_ARG;
 		}
         after_trigger = trigger->a;
@@ -162,7 +167,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
 
     if (opt->transform_module) {
         if (!(t = setup_transform_module(sdi, opt->transform_module))) {
-            fprintf(stderr, "Failed to initialize transform module.\n");
+            err_msg("%s:%d Failed to initialize transform module", __FILE__, __LINE__);
             return SR_ERR_ARG;
         }
         transform_initialized = 1;
@@ -179,7 +184,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             ch_data_ptr = l->data;
             if (ch_data_ptr->trigger) {
                 if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
-                    err_msg("opening input file");
+                    err_msg("%s:%d Failed to open input file", __FILE__, __LINE__);
                     ret = SR_ERR_IO;
                     goto cleanup;
                 }
@@ -190,7 +195,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
                     seek += SALEAE_ANALOG_HDR_SIZE;
 
                 if (lseek(fd, seek, SEEK_SET) < 0) {
-                    err_msg("during lseek()");
+                    err_msg("%s:%d failed during lseek()", __FILE__, __LINE__);
                     close(fd);
                     ret = SR_ERR_IO;
                     goto cleanup;
@@ -218,7 +223,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         i++;
 
         if ((fd = open(ch_data_ptr->input_file_name, O_RDONLY)) < 0) {
-            err_msg("opening input file");
+            err_msg("%s:%d failed to open input file", __FILE__, __LINE__);
             ret = SR_ERR_IO;
             goto cleanup;
         }
@@ -229,8 +234,8 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             trigger_at_sample = sat_trigger_loc(trigger);
 
             if (before_trigger > trigger_at_sample) {
-                fprintf(stderr, "warning: cannot read %ld samples before trigger %d at sample %ld,\n", before_trigger, trigger->id, trigger_at_sample);
-                fprintf(stderr, "cropping will begin at sample #0 instead!\n");
+                err_msg("warning: cannot read %ld samples before trigger %d at sample %ld,\n", before_trigger, trigger->id, trigger_at_sample);
+                err_msg("cropping will begin at sample #0 instead!\n");
                 samples_remaining = trigger_at_sample;
             } else {
                 samples_remaining = before_trigger;
@@ -239,8 +244,8 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             }
 
             if (trigger_at_sample + after_trigger > ch_data_ptr->sample_count) {
-                fprintf(stderr, "warning: cannot read %ld samples after trigger %d at sample %ld/%ld,\n", after_trigger, trigger->id, trigger_at_sample, ch_data_ptr->sample_count);
-                fprintf(stderr, "cropping will end at sample %ld instead!\n", ch_data_ptr->sample_count);
+                err_msg("warning: cannot read %ld samples after trigger %d at sample %ld/%ld,\n", after_trigger, trigger->id, trigger_at_sample, ch_data_ptr->sample_count);
+                err_msg("cropping will end at sample %ld instead!\n", ch_data_ptr->sample_count);
                 samples_remaining += ch_data_ptr->sample_count - trigger_at_sample;
             } else {
                 samples_remaining += after_trigger;
@@ -257,7 +262,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
             seek += SALEAE_ANALOG_HDR_SIZE;
 
         if (lseek(fd, seek, SEEK_SET) < 0) {
-            err_msg("during lseek()");
+            err_msg("%s:%d failed during lseek()", __FILE__, __LINE__);
             close(fd);
             ret = SR_ERR_IO;
             goto cleanup;

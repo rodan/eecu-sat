@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
 #include <string.h>
+#include "error.h"
 #include "transform.h"
 #include "transform_calibrate_linear_3p.h"
 
@@ -42,7 +42,7 @@ const struct sr_transform_module **sat_transform_list(void)
 const char *sat_transform_id_get(const struct sr_transform_module *tmod)
 {
     if (!tmod) {
-        fprintf(stderr, "Invalid transform module NULL!\n");
+        err_msg("%s:%d Invalid transform module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -55,7 +55,7 @@ const char *sat_transform_id_get(const struct sr_transform_module *tmod)
 const char *sat_transform_name_get(const struct sr_transform_module *tmod)
 {
     if (!tmod) {
-        fprintf(stderr, "Invalid transform module NULL!\n");
+        err_msg("%s:%d Invalid transform module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -68,7 +68,7 @@ const char *sat_transform_name_get(const struct sr_transform_module *tmod)
 const char *sat_transform_description_get(const struct sr_transform_module *tmod)
 {
     if (!tmod) {
-        fprintf(stderr, "Invalid transform module NULL!\n");
+        err_msg("%s:%d Invalid transform module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -182,7 +182,7 @@ const struct sr_transform *sat_transform_new(const struct sr_transform_module *t
                 /* Pass option along. */
                 gvt = g_variant_get_type(mod_opts[i].def);
                 if (!g_variant_is_of_type(value, gvt)) {
-                    fprintf(stderr, "Invalid type for '%s' option.\n", (char *)key);
+                    err_msg("%s:%d Invalid type for '%s' option", __FILE__, __LINE__, (char *)key);
                     g_free(t);
                     return NULL;
                 }
@@ -198,7 +198,7 @@ const struct sr_transform *sat_transform_new(const struct sr_transform_module *t
             g_hash_table_iter_init(&iter, options);
             while (g_hash_table_iter_next(&iter, &key, &value)) {
                 if (!g_hash_table_lookup(new_opts, key)) {
-                    fprintf(stderr, "Transform module '%s' has no option '%s'.\n", tmod->id, (char *)key);
+                    err_msg("%s:%d Transform module '%s' has no option '%s'.\n", __FILE__, __LINE__, tmod->id, (char *)key);
                     g_hash_table_destroy(new_opts);
                     g_free(t);
                     return NULL;

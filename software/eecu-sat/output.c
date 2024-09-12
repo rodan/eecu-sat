@@ -17,8 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
 #include <string.h>
+#include "error.h"
 #include "output.h"
 #include "output_analog.h"
 #include "output_srzip.h"
@@ -45,7 +45,7 @@ const struct sr_output_module **sat_output_list(void)
 const char *sat_output_id_get(const struct sr_output_module *omod)
 {
     if (!omod) {
-        fprintf(stderr, "Invalid output module NULL!\n");
+        err_msg("%s:%d Invalid output module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -58,7 +58,7 @@ const char *sat_output_id_get(const struct sr_output_module *omod)
 const char *sat_output_name_get(const struct sr_output_module *omod)
 {
     if (!omod) {
-        fprintf(stderr, "Invalid output module NULL!\n");
+        err_msg("%s:%d Invalid output module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -71,7 +71,7 @@ const char *sat_output_name_get(const struct sr_output_module *omod)
 const char *sat_output_description_get(const struct sr_output_module *omod)
 {
     if (!omod) {
-        fprintf(stderr, "Invalid output module NULL!\n");
+        err_msg("%s:%d Invalid output module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -87,7 +87,7 @@ const char *sat_output_description_get(const struct sr_output_module *omod)
 const char *const *sat_output_extensions_get(const struct sr_output_module *omod)
 {
     if (!omod) {
-        fprintf(stderr, "Invalid output module NULL!\n");
+        err_msg("%s:%d Invalid output module NULL!", __FILE__, __LINE__);
         return NULL;
     }
 
@@ -205,7 +205,7 @@ const struct sr_output *sat_output_new(const struct sr_output_module *omod,
                 /* Pass option along. */
                 gvt = g_variant_get_type(mod_opts[i].def);
                 if (!g_variant_is_of_type(value, gvt)) {
-                    fprintf(stderr, "Invalid type for '%s' option.", (char *)key);
+                    err_msg("%s:%d Invalid type for '%s' option.", __FILE__, __LINE__, (char *)key);
                     g_free(op);
                     return NULL;
                 }
@@ -221,7 +221,7 @@ const struct sr_output *sat_output_new(const struct sr_output_module *omod,
             g_hash_table_iter_init(&iter, options);
             while (g_hash_table_iter_next(&iter, &key, &value)) {
                 if (!g_hash_table_lookup(new_opts, key)) {
-                    fprintf(stderr, "Output module '%s' has no option '%s'", omod->id, (char *)key);
+                    err_msg("%s:%d Output module '%s' has no option '%s'", __FILE__, __LINE__, omod->id, (char *)key);
                     g_hash_table_destroy(new_opts);
                     g_free(op);
                     return NULL;
