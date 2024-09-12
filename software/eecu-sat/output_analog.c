@@ -40,11 +40,7 @@ static int init(struct sr_output *o, GHashTable *options)
     if (!o || !options)
         return SR_ERR_ARG;
 
-    outc = (struct out_context *)calloc(1, sizeof(struct out_context));
-    if (outc == NULL) {
-        errMsg("calloc error");
-        return SR_ERR_MALLOC;
-    }
+    outc = (struct out_context *)g_malloc0(sizeof(struct out_context));
     o->priv = outc;
 
     outc->channel_offset = g_variant_get_uint32(g_hash_table_lookup(options, "channel_offset"));
@@ -66,11 +62,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
 
     UNUSED(out);
 
-    filename = (char *)calloc(PATH_MAX, 1);
-    if (filename == NULL) {
-        errMsg("calloc error");
-        return SR_ERR_MALLOC;
-    }
+    filename = (char *)g_malloc0(PATH_MAX);
 
     analog = pkt->payload;
 
@@ -146,7 +138,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
 
 cleanup:
     if (filename)
-        free(filename);
+        g_free(filename);
 
     if (fp)
         fclose(fp);
@@ -177,7 +169,7 @@ static int cleanup(struct sr_output *o)
 
     if (o->priv) {
         outc = o->priv;
-        free(outc);
+        g_free(outc);
         o->priv = NULL;
     }
 

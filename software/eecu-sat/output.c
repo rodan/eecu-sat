@@ -231,6 +231,7 @@ const struct sr_output *sat_output_new(const struct sr_output_module *omod,
     }
 
     if (op->module->init && op->module->init(op, new_opts) != SR_OK) {
+        g_free(op->filename);
         g_free(op);
         op = NULL;
     }

@@ -3,6 +3,7 @@
 # environment variables received by this script from caller
 # 
 # ${sample_dir}  - directory from where to get the data files
+# ${wrapper}     - an external binary that will indirectly call the unit test - like valgrind or strace
 
 cat << EOF > manifest
 d3831112906a08305965ed01365006164219fc8cf09a6ce3700252d72a8ee08e  analog-1-1-1
@@ -25,12 +26,12 @@ e1f19948fa609f538bd2f26fe94ff576311cd3edd487f43f81d23efab08faa5c  analog-1-9-1
 d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35  version
 EOF
 
-./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./calibrated.sr --output-format "srzip:metadata_file=${sample_dir}/metadata_16ch" --transform-module "calibrate_linear_3p:calib_file=${sample_dir}/calib_reference.ini"
+${wrapper} ./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./calibrated.sr --output-format "srzip:metadata_file=${sample_dir}/metadata_16ch" --transform-module "calibrate_linear_3p:calib_file=${sample_dir}/calib_reference.ini"
 ret=$?
 
-unzip calibrated.sr
+unzip -q calibrated.sr
 
-sha256sum -c manifest
+sha256sum --quiet -c manifest
 ret=$(($? + ret))
 
 exit "${ret}"

@@ -217,12 +217,7 @@ int calib_init_from_buffer(float *buffer, ssize_t num_samples, calib_context_t *
     //printf("slope0 %lf\nslope1 %lf\n", c->slope_0, c->slope_1);
     //printf("offset0 %lf\noffset1 %lf\n", c->offset_0, c->offset_1);
 
-    cco = (char *) calloc(4*1024, sizeof(char));
-    if (!cco) {
-        errMsg("during calloc");
-        ret = SR_ERR_MALLOC;
-        goto cleanup;
-    }
+    cco = (char *) g_malloc0(4 * 1024 * sizeof(char));
 
     snprintf(ccol, LINE_MAX_SZ, "[CH%d]\n", c->id);
     strcat(cco, ccol);
@@ -241,7 +236,7 @@ int calib_init_from_buffer(float *buffer, ssize_t num_samples, calib_context_t *
 
 cleanup:
     if (cco)
-        free(cco);
+        g_free(cco);
 
     return ret;
 }

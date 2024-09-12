@@ -47,17 +47,13 @@ static int init(struct sr_output *o, GHashTable *options)
 
     unlink(o->filename);
 
-    outc = (struct out_context *)calloc(1, sizeof(struct out_context));
+    outc = (struct out_context *)g_malloc0(sizeof(struct out_context));
     o->priv = outc;
 
     /* Options */
     outc->metadata_file = g_strdup(g_variant_get_string(g_hash_table_lookup(options, "metadata_file"), NULL));
 
-    outc->target_filename = (char *)calloc(PATH_MAX, 1);
-    if (outc->target_filename == NULL) {
-        errMsg("calloc error");
-        return SR_ERR_MALLOC;
-    }
+    outc->target_filename = (char *)g_malloc0(PATH_MAX);
 
     archive = zip_open(o->filename, ZIP_CREATE, NULL);
     if (!archive) {
@@ -192,11 +188,11 @@ static int cleanup(struct sr_output *o)
     if (o->priv) {
         outc = o->priv;
         if (outc->target_filename)
-            free(outc->target_filename);
+            g_free(outc->target_filename);
         if (outc->metadata_file)
-            free(outc->metadata_file);
+            g_free(outc->metadata_file);
 
-        free(o->priv);
+        g_free(o->priv);
     }
 
     return SR_OK;

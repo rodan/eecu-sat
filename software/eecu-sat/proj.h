@@ -16,6 +16,7 @@
 
 struct cmdline_opt {
     char *input_prefix;
+    char *input_format;
     char *output_file;
     char *output_format;
     char *transform_module;

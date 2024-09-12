@@ -48,10 +48,15 @@ run_test() {
     mkdir -p "${test_tmp_dir}"
     ln -s "${bin_file}" "${test_tmp_dir}/eecu-sat"
     pushd "${test_tmp_dir}" 1>/dev/null 2>&1
-    bash "${prefix}/${1}/test.sh" 1>>"${log_file}" 2>&1
-    ret=$?
+    if [ "$2" == "--verbose" ]; then
+        bash "${prefix}/${1}/test.sh"
+        ret=$?
+    else
+        bash "${prefix}/${1}/test.sh" 1>>"${log_file}" 2>&1
+        ret=$?
+        eend "${ret}"
+    fi
     popd 1>/dev/null 2>&1
-    eend "${ret}"
     "${keep_output}" || {
         [ "${ret}" = 0 ] && rm -rf "${test_tmp_dir}"
     }
@@ -82,15 +87,23 @@ mkdir -p "${tmp_dir}"
     unzip "${prefix}/sample_files.zip" -d "${sample_dir}" >/dev/null
 }
 
-error_detected=false
-for (( i=0; i<${#tests[@]}; i++ )); do
-    run_test "${tests[$i]}"
-    [ $? != 0 ] && error_detected=true
-done
+if [ "$1" == "--valgrind" ]; then 
+    export wrapper='valgrind --leak-check=full '
+    for (( i=0; i<${#tests[@]}; i++ )); do
+        run_test "${tests[$i]}" --verbose
+    done
 
-${error_detected} && {
-    cat "${log_file}"
-    exit 1
-}
+else
+    error_detected=false
+    for (( i=0; i<${#tests[@]}; i++ )); do
+        run_test "${tests[$i]}"
+        [ $? != 0 ] && error_detected=true
+    done
+
+    ${error_detected} && {
+        cat "${log_file}"
+        exit 1
+    }
+fi
 
 exit 0

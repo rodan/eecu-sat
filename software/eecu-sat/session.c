@@ -167,12 +167,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
         transform_initialized = 1;
     }
 
-    analog.data = (uint8_t *) calloc(CHUNK_SIZE, 1);
-    if (!analog.data) {
-        errMsg("during calloc");
-        ret = SR_ERR_MALLOC;
-        goto cleanup;
-    }
+    analog.data = (uint8_t *) g_malloc0(CHUNK_SIZE);
 
     i = 0;
     pkt.payload = &analog;
@@ -318,7 +313,7 @@ int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
     if (t)
         sat_transform_free(t);
     if (analog.data)
-        free(analog.data);
+        g_free(analog.data);
 
     return ret;
 }

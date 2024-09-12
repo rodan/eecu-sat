@@ -55,7 +55,9 @@ static void show_usage(void)
 {
     fprintf(stdout, "Usage: eecu-sat [-i PREFIX] [-o FILE]\n");
     fprintf(stdout, "\t-i, --input\n");
-    fprintf(stdout, "\t\ta prefix that defines the input raw analog files. default is %s\n", opt_default_input_prefix);
+    fprintf(stdout, "\t\ta prefix that defines the input files. default is %s\n", opt_default_input_prefix);
+    fprintf(stdout, "\t-I, --input-format\n");
+    fprintf(stdout, "\t\tinput data format to use, see -L for list\n");
     fprintf(stdout, "\t-o, --output=FILE\n");
     fprintf(stdout, "\t\toutput file to be generated\n");
     fprintf(stdout, "\t-O, --output-format OUTPUT\n");
@@ -103,6 +105,7 @@ static int parse_options(int argc, char **argv)
         opt_idx = 0;
         static struct option long_options[] = {
             {"input", 1, 0, 'i'},
+            {"input-format", 1, 0, 'I'},
             {"output", 1, 0, 'o'},
             {"output-format", 1, 0, 'O'},
             {"triggers", 1, 0, 't'},
@@ -113,13 +116,16 @@ static int parse_options(int argc, char **argv)
             {0, 0, 0, 0}
         };
 
-        q = getopt_long(argc, argv, "i:o:O:t:T:Lhv", long_options, &opt_idx);
+        q = getopt_long(argc, argv, "i:I:o:O:t:T:Lhv", long_options, &opt_idx);
         if (q == -1) {
             break;
         }
         switch (q) {
         case 'i':
             opt.input_prefix = optarg;
+            break;
+        case 'I':
+            opt.input_format = optarg;
             break;
         case 'o':
             opt.output_file = optarg;
@@ -184,7 +190,7 @@ int main(int argc, char **argv)
     input_dirname = dirname(_input_dirname);
     input_basename = basename(_input_basename);
 
-    //printf("input files prefix is %s, dirname %s, basename %s\n", opt_input_prefix, input_dirname, input_basename);
+    //printf("input files prefix is %s, dirname %s, basename %s\n", opt.input_prefix, input_dirname, input_basename);
     ch_cnt = scandir(input_dirname, &namelist, NULL, versionsort);
 
     sdi.priv = &frame;
@@ -198,20 +204,10 @@ int main(int argc, char **argv)
             if (!res) {
                 //printf("%s matches\n", namelist[i]->d_name);
                 channel_total++;
-                ch_data_ptr = calloc(1, sizeof(struct ch_data));
-                if (!ch_data_ptr) {
-                    errMsg("during calloc");
-                    ret = SR_ERR_MALLOC;
-                    goto cleanup;
-                }
+                ch_data_ptr = g_malloc0(sizeof(struct ch_data));
 
                 file_name_len = strlen(input_dirname) + strlen(namelist[i]->d_name);
-                ch_data_ptr->input_file_name = (char *)calloc(file_name_len + 3, sizeof(char));
-                if (!ch_data_ptr->input_file_name) {
-                    errMsg("during calloc");
-                    ret = SR_ERR_MALLOC;
-                    goto cleanup;
-                }
+                ch_data_ptr->input_file_name = (char *)g_malloc0((file_name_len + 3) * sizeof(char));
                 snprintf(ch_data_ptr->input_file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
                 ch_data_ptr->id = channel_total;
                 ch_data_ptr->sample_size = sizeof(float);
@@ -280,11 +276,11 @@ int main(int argc, char **argv)
 
     ret = run_session(&sdi, &opt);
 
-#ifdef CONFIG_DEBUG
+#if 0
     channels = sr_dev_inst_channels_get(&sdi);
     for (l = channels; l; l = l->next) {
         ch_data_ptr = l->data;
-        //printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
+        printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
     }
 #endif
 
@@ -293,14 +289,15 @@ int main(int argc, char **argv)
         free(namelist[i]);
     }
     free(namelist);
+    channels = sr_dev_inst_channels_get(&sdi);
     if (channels) {
         for (l = channels; l; l = l->next) {
             ch_data_ptr = l->data;
             if (ch_data_ptr->input_file_name)
-                free(ch_data_ptr->input_file_name);
+                g_free(ch_data_ptr->input_file_name);
             if (ch_data_ptr->trigger)
                 sat_trigger_free(ch_data_ptr->trigger);
-            free(l->data);
+            g_free(l->data);
         }
         g_slist_free(channels);
     }

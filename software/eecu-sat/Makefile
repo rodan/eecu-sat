@@ -44,6 +44,7 @@ COVERITY_SCAN_TOKEN := $(shell cat ../../.secrets.COVERITY_SCAN_TOKEN 2>/dev/nul
 .PHONY: clean
 .PHONY: tags
 .PHONY: test
+.PHONY: valgrind
 .PHONY: lib
 
 all : libs version.h $(EXOUTPUT)
@@ -91,6 +92,9 @@ tags: $(SRCS)
 
 test: $(PROJ)
 	@bash ../unit_tests/run_tests.sh
+
+valgrind: $(PROJ)
+	@bash ../unit_tests/run_tests.sh --valgrind
 
 cppcheck: $(PROJ)
 	@cppcheck --quiet --force --enable=warning --enable=performance --enable=information --enable=performance --enable=portability -I ./ ./

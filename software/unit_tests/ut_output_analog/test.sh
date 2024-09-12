@@ -3,6 +3,7 @@
 # environment variables received by this script from caller
 # 
 # ${sample_dir}  - directory from where to get the data files
+# ${wrapper}     - an external binary that will indirectly call the unit test - like valgrind or strace
 
 cat << EOF > manifest
 e170f2eb5400938f96c7cefad670e97f34f4e15726f481f79c70123ff41a83a1  analog_1.bin
@@ -23,10 +24,10 @@ be34c19c24ad0108ecd40ac7b73c137217b226d96005cabb78b8d43df6b65b54  analog_8.bin
 c5de76ac06393dfc3fd4b5832f752c30a0db2924e162c6964177141a646d6b2f  analog_9.bin
 EOF
 
-./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./analog_ --output-format analog
+${wrapper} ./eecu-sat --input "${sample_dir}/analog_[0-9]*.bin" --output ./analog_ --output-format analog
 ret=$?
 
-sha256sum -c manifest
+sha256sum --quiet -c manifest
 ret=$(($? + ret))
 
 exit "${ret}"

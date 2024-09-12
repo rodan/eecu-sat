@@ -42,11 +42,7 @@ static int init(struct sr_output *o, GHashTable *options)
     if (!o || !options)
         return SR_ERR_ARG;
 
-    outc = (struct out_context *)calloc(1, sizeof(struct out_context));
-    if (outc == NULL) {
-        errMsg("calloc error");
-        return SR_ERR_MALLOC;
-    }
+    outc = (struct out_context *)g_malloc0(sizeof(struct out_context));
     o->priv = outc;
 
     /* Options */
@@ -54,6 +50,9 @@ static int init(struct sr_output *o, GHashTable *options)
 
     if ((calib_read_params_from_file(outc->calib_file, &outc->cal.globals, CALIB_INI_GLOBALS)) != SR_OK) {
         fprintf(stderr, "error during calib_read_params_from_file()\n");
+        g_free(outc->calib_file);
+        g_free(outc);
+        o->priv = NULL;
         return SR_ERR_ARG;
     }
 
@@ -100,12 +99,7 @@ static int receive(const struct sr_output *o, const struct sr_datafeed_packet *p
         //printf("slope0 %lf\nslope1 %lf\n", c->slope_0, c->slope_1);
         //printf("offset0 %lf\noffset1 %lf\n", c->offset_0, c->offset_1);
 
-        cco = (char *) calloc(4*1024, sizeof(char));
-        if (!cco) {
-            errMsg("during calloc");
-            ret = SR_ERR_MALLOC;
-            goto cleanup;
-        }
+        cco = (char *) g_malloc0(4*1024 * sizeof(char));
 
         snprintf(ccol, LINE_MAX_SZ, "[CH%d]\n", c->id);
         strcat(cco, ccol);
@@ -142,7 +136,7 @@ cleanup:
     if (ifd >= 0)
         close(ifd);
     if (cco)
-        free(cco);
+        g_free(cco);
 
     return ret;
 }
@@ -172,7 +166,7 @@ static int cleanup(struct sr_output *o)
         outc = o->priv;
         if (outc->calib_file)
             g_free(outc->calib_file);
-        free(outc);
+        g_free(outc);
         o->priv = NULL;
     }
 
