@@ -5,11 +5,15 @@ INIH_DIR  = ../lib/inih
 INIH_SRC  = ${INIH_DIR}/ini.c
 INIH_OBJ  = $(patsubst ${INIH_DIR}/%.c,build/lib/inih/%.o,${INIH_SRC})
 
-LIBS_OBJ = $(INIH_OBJ)
+NATSORT_DIR  = ../lib/natsort
+NATSORT_SRC  = ${NATSORT_DIR}/strnatcmp.c
+NATSORT_OBJ  = $(patsubst ${NATSORT_DIR}/%.c,build/lib/natsort/%.o,${NATSORT_SRC})
 
-INCLUDES  := -I ./ -I $(INIH_DIR)
+LIBS_OBJ = $(INIH_OBJ) $(NATSORT_OBJ)
+
+INCLUDES  := -I ./ -I $(INIH_DIR) -I $(NATSORT_DIR)
 LOCAL_SRC_C := main.c saleae.c session.c parsers.c error.c output.c output_analog.c output_srzip.c output_calibrate_linear_3p.c calib.c transform.c transform_calibrate_linear_3p.c trigger.c
-SRC        = $(LOCAL_SRC_C) $(INIH_SRC)
+SRC        = $(LOCAL_SRC_C) $(INIH_SRC) $(NATSORT_SRC)
 EXOUTPUT   = $(PROJ)
 
 LOCAL_OBJECTS     = $(patsubst %.c,build/%.o,${LOCAL_SRC_C})
@@ -20,7 +24,7 @@ LDFLAGS_REL	 += -Wl,-s
 CFLAGS_DBG	 += -O1 -ggdb -DNDEBUG # -pg
 LDFLAGS_DBG	 += # -pg
 
-MANDATORY_CFLAGS=-fPIC -pedantic -Wall -Wextra -Wno-sign-compare -Wa,-ahl=$(@:.o=.s) `pkgconf --cflags libzip` `pkgconf --cflags glib-2.0` `pkgconf --cflags libsigrok`
+MANDATORY_CFLAGS=-fPIC -pedantic -Wall -Wextra -Wno-sign-compare `pkgconf --cflags libzip` `pkgconf --cflags glib-2.0` `pkgconf --cflags libsigrok` # -Wa,-ahl=$(@:.o=.s)
 MANDATORY_LDFLAGS=`pkgconf --libs libzip` `pkgconf --libs glib-2.0` `pkgconf --libs libsigrok`
 
 DEBUG := $(shell grep "^#define CONFIG_DEBUG" config.h)
@@ -56,7 +60,12 @@ ename.c.inc:
 build/lib/inih/%.o: ${INIH_DIR}/%.c
 	@mkdir -p build/lib/inih
 	@echo -e " * $(@F)"
-	@@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
+	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
+
+build/lib/natsort/%.o: ${NATSORT_DIR}/%.c
+	@mkdir -p build/lib/natsort
+	@echo -e " * $(@F)"
+	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
 
 build/%.o: %.c
 	@mkdir -p build
@@ -67,9 +76,9 @@ build/%.o: %.c
 	@echo -e " * $(@F)"
 	@$(CC) $(INCLUDES) $(TARGET_CFLAGS) -c $< -o $@
 
-$(EXOUTPUT): $(LOCAL_OBJECTS) $(INIH_OBJ)
+$(EXOUTPUT): $(LOCAL_OBJECTS) $(INIH_OBJ) $(NATSORT_OBJ)
 	@echo -e "\n>> Building $@ as target $(TARGET)"
-	@$(CC) $(TARGET_LDFLAGS) $(LOCAL_OBJECTS) $(INIH_OBJ) -o $@ && size $@
+	@$(CC) $(TARGET_LDFLAGS) $(LOCAL_OBJECTS) $(INIH_OBJ) $(NATSORT_OBJ) -o $@ && size $@
 
 clean :
 	@${RM} -rf build

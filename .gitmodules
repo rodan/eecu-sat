@@ -1,3 +1,6 @@
 [submodule "software/lib/inih"]
 	path = software/lib/inih
 	url = https://github.com/benhoyt/inih.git
+[submodule "software/lib/natsort"]
+	path = software/lib/natsort
+	url = https://github.com/sourcefrog/natsort.git

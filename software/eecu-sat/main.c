@@ -226,7 +226,12 @@ int main(int argc, char **argv)
         perror("scandir");
     else {
         for (i = 0; i < ch_cnt; i++) {
+#if defined(__linux__)
             res = fnmatch(input_basename, namelist[i]->d_name, FNM_EXTMATCH);
+#else
+            // non GNU libc implementations lack the FNM_EXTMATCH flag, so the natural sorting of the filenames needs to happen separately
+            res = fnmatch(input_basename, namelist[i]->d_name, 0);
+#endif
             if (!res) {
                 //printf("%s matches\n", namelist[i]->d_name);
                 channel_total++;
@@ -310,13 +315,13 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-#if 0
+//#if 0
     channels = sr_dev_inst_channels_get(&sdi);
     for (l = channels; l; l = l->next) {
         ch_data_ptr = l->data;
         printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
     }
-#endif
+//#endif
 
 cleanup:
     for (i = 0; i < ch_cnt; i++) {

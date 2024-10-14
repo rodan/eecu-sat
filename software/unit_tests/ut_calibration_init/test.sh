@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # environment variables received by this script from caller
 # 

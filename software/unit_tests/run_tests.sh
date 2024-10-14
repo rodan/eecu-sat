@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # the working directory while running this script must either be 
 # $project/software/unit_tests or $project/software/eecu-sat
@@ -22,9 +22,10 @@ ebegin() {
 }
 
 eend() {
-    local retval="${1:-0}" efunc="${2:-eerror}"
+    retval="${1:-0}"
+    efunc="${2:-eerror}"
 
-    if [[ ${retval} == "0" ]] ; then
+    if [ ${retval} == "0" ]; then
             msg="${BRACKET}[ ${GOOD}ok${BRACKET} ]${NORMAL}"
     else
             msg="${BRACKET}[ ${BAD}!!${BRACKET} ]${NORMAL}"
@@ -32,14 +33,7 @@ eend() {
     echo -e "${ENDCOL} ${msg}"
 }
 
-tests=(
-    ut_calibration_init
-    ut_calibration
-    ut_output_analog
-    ut_output_srzip
-    ut_output_srzip_metadata_import
-    ut_trigger
-)
+tests="ut_calibration_init ut_calibration ut_output_analog ut_output_srzip ut_output_srzip_metadata_import ut_trigger"
 
 run_test() {
     ebegin "     ${1}"
@@ -47,7 +41,7 @@ run_test() {
     rm -rf "${test_tmp_dir}"
     mkdir -p "${test_tmp_dir}"
     ln -s "${bin_file}" "${test_tmp_dir}/eecu-sat"
-    pushd "${test_tmp_dir}" 1>/dev/null 2>&1
+    cd "${test_tmp_dir}" 1>/dev/null 2>&1
     if [ "$2" == "--verbose" ]; then
         bash "${prefix}/${1}/test.sh"
         ret=$?
@@ -56,7 +50,7 @@ run_test() {
         ret=$?
         eend "${ret}"
     fi
-    popd 1>/dev/null 2>&1
+    cd - 1>/dev/null 2>&1
     "${keep_output}" || {
         [ "${ret}" = 0 ] && rm -rf "${test_tmp_dir}"
     }
@@ -89,14 +83,14 @@ mkdir -p "${tmp_dir}"
 
 if [ "$1" == "--valgrind" ]; then 
     export wrapper='valgrind --leak-check=full '
-    for (( i=0; i<${#tests[@]}; i++ )); do
-        run_test "${tests[$i]}" --verbose
+    for test in ${tests}; do
+        run_test "${test}" --verbose
     done
 
 else
     error_detected=false
-    for (( i=0; i<${#tests[@]}; i++ )); do
-        run_test "${tests[$i]}"
+    for test in ${tests}; do
+        run_test "${test}"
         [ $? != 0 ] && error_detected=true
     done
 

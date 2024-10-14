@@ -21,7 +21,6 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <linux/limits.h>
 #include <zip.h>
 #include "proj.h"
 #include "error.h"

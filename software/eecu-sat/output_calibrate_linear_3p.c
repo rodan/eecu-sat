@@ -23,8 +23,6 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <fcntl.h>
-#include <linux/limits.h>
-#include <zip.h>
 #include "proj.h"
 #include "error.h"
 #include "calib.h"
