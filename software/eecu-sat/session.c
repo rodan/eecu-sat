@@ -111,7 +111,7 @@ const struct sr_transform *setup_transform_module(const struct sr_dev_inst *sdi,
     return t;
 }
 
-int run_session(const struct sr_dev_inst *sdi, struct cmdline_opt *opt)
+int run_session(const struct sr_dev_inst *sdi, const struct cmdline_opt *opt)
 {
     int ret = SR_OK;
     const struct sr_output *o = NULL;

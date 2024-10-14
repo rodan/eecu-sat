@@ -309,15 +309,6 @@ int main(int argc, char **argv)
         }
     }
 
-    if (channel_total) {
-        ret = run_session(&sdi, &opt);
-    } else {
-        err_msg("%s:%d no valid input channels found", __FILE__, __LINE__);
-        show_usage();
-        ret = SR_ERR_ARG;
-        goto cleanup;
-    }
-
     // sort list using a natural sort algorithm
     sdi.channels = g_slist_sort(sdi.channels, cmp_channel_names);
 
@@ -329,6 +320,15 @@ int main(int argc, char **argv)
         ch_data_ptr->id = channel_total;
         channel_total++;
         //fprintf(stdout, "file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
+    }
+
+    if (channel_total) {
+        ret = run_session(&sdi, &opt);
+    } else {
+        err_msg("%s:%d no valid input channels found", __FILE__, __LINE__);
+        show_usage();
+        ret = SR_ERR_ARG;
+        goto cleanup;
     }
 
 cleanup:
