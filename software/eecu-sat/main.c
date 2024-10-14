@@ -46,6 +46,7 @@
 #include "parsers.h"
 #include "trigger.h"
 #include "session.h"
+#include "strnatcmp.h"
 
 // program arguments
 static char *opt_default_input_prefix = "analog_[0-9]*.bin";
@@ -180,6 +181,13 @@ static void logger(const gchar *log_domain, GLogLevelFlags log_level,
     //    exit(1);
 }
 
+static int cmp_channel_names(const void *leftp, const void *rightp)
+{
+    const ch_data_t *left = leftp;
+    const ch_data_t *right = rightp;
+    return strnatcmp(left->input_file_name, right->input_file_name);
+}
+
 int main(int argc, char **argv)
 {
     int res;
@@ -226,12 +234,8 @@ int main(int argc, char **argv)
         perror("scandir");
     else {
         for (i = 0; i < ch_cnt; i++) {
-#if defined(__linux__)
-            res = fnmatch(input_basename, namelist[i]->d_name, FNM_EXTMATCH);
-#else
             // non GNU libc implementations lack the FNM_EXTMATCH flag, so the natural sorting of the filenames needs to happen separately
             res = fnmatch(input_basename, namelist[i]->d_name, 0);
-#endif
             if (!res) {
                 //printf("%s matches\n", namelist[i]->d_name);
                 channel_total++;
@@ -240,7 +244,6 @@ int main(int argc, char **argv)
                 file_name_len = strlen(input_dirname) + strlen(namelist[i]->d_name);
                 ch_data_ptr->input_file_name = (char *)g_malloc0((file_name_len + 3) * sizeof(char));
                 snprintf(ch_data_ptr->input_file_name, file_name_len + 2, "%s/%s", input_dirname, namelist[i]->d_name);
-                ch_data_ptr->id = channel_total;
                 ch_data_ptr->sample_size = sizeof(float);
 
                 // get file size
@@ -315,13 +318,18 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-//#if 0
+    // sort list using a natural sort algorithm
+    sdi.channels = g_slist_sort(sdi.channels, cmp_channel_names);
+
+    // set channel ids on the sorted list
+    channel_total = 1;
     channels = sr_dev_inst_channels_get(&sdi);
     for (l = channels; l; l = l->next) {
         ch_data_ptr = l->data;
-        printf("file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
+        ch_data_ptr->id = channel_total;
+        channel_total++;
+        //fprintf(stdout, "file id %d in list %s\n", ch_data_ptr->id, ch_data_ptr->input_file_name);
     }
-//#endif
 
 cleanup:
     for (i = 0; i < ch_cnt; i++) {
